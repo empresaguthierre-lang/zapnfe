@@ -39,3 +39,7 @@ Acesse [http://localhost:3000](http://localhost:3000).
 ## Ambientes
 
 As integrações fiscal e de WhatsApp devem começar em homologação/teste. A publicação em produção exige validação específica das credenciais, banco de dados e fluxo completo.
+
+## Fase 1
+
+O webhook seguro, a extração estruturada pelo Gemini e o schema multiempresa do Supabase estão descritos em [docs/FASE_1_WHATSAPP_GEMINI.md](docs/FASE_1_WHATSAPP_GEMINI.md).
