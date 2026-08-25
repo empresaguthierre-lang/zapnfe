@@ -1,19 +1,23 @@
 import { z } from "zod";
 
-const serverEnvSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.url(),
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  GEMINI_API_KEY: z.string().min(1),
-  WHATSAPP_ACCESS_TOKEN: z.string().min(1),
-  WHATSAPP_PHONE_NUMBER_ID: z.string().min(1),
-  WHATSAPP_VERIFY_TOKEN: z.string().min(1),
-  WHATSAPP_APP_SECRET: z.string().min(1),
-  FOCUS_NFE_TOKEN: z.string().min(1),
-  FOCUS_NFE_ENVIRONMENT: z.enum(["homologacao", "producao"]),
-  CERTIFICATE_ENCRYPTION_KEY: z.string().min(1),
-});
+const nonEmpty = z.string().min(1);
 
-export function getServerEnv() {
-  return serverEnvSchema.parse(process.env);
+export function getSupabaseAdminEnv() {
+  const url = z.url().parse(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const secretKey = nonEmpty.parse(process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return { url, secretKey };
+}
+
+export function getGeminiEnv() {
+  return {
+    apiKey: nonEmpty.parse(process.env.GEMINI_API_KEY),
+    model: nonEmpty.parse(process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite"),
+  };
+}
+
+export function getWhatsAppWebhookEnv() {
+  return {
+    verifyToken: nonEmpty.parse(process.env.WHATSAPP_VERIFY_TOKEN),
+    appSecret: nonEmpty.parse(process.env.WHATSAPP_APP_SECRET),
+  };
 }
