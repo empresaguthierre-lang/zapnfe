@@ -1,4 +1,5 @@
 import { FiArrowUpRight, FiBox, FiCheck, FiChevronRight, FiClock, FiFileText, FiGrid, FiMessageCircle, FiMoreHorizontal, FiPackage, FiPlus, FiSearch, FiSettings, FiShoppingBag, FiUsers } from "react-icons/fi";
+import Link from "next/link";
 
 const orders = [
   { customer: "Mercado São João", initials: "MS", items: "10 itens", total: "R$ 1.842,50", time: "há 3 min", status: "Conferência", tone: "review" },
@@ -82,6 +83,7 @@ export default function Home() {
             <div className="setup-callout"><FiBox /><div><strong>Configuração pendente</strong><p>Conecte Supabase, WhatsApp, Gemini e Focus NFe quando os projetos estiverem disponíveis.</p></div></div>
           </aside>
         </section>
+        <footer className="legal-footer"><span>ZapNFe · Ambiente de homologação</span><nav><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/exclusao-de-dados">Exclusão de dados</Link></nav></footer>
       </section>
     </main>
   );

@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:lines": "node scripts/check-file-lines.mjs",
+    "quality": "npm run check:lines && npm run lint && npm run build",
+    "security:audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

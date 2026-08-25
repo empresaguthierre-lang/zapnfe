@@ -20,7 +20,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (!Number.isFinite(contentLength) || contentLength > 1_000_000) {
+    return Response.json({ error: "Payload muito grande" }, { status: 413 });
+  }
   const rawBody = await request.text();
+  if (Buffer.byteLength(rawBody, "utf8") > 1_000_000) return Response.json({ error: "Payload muito grande" }, { status: 413 });
   const signature = request.headers.get("x-hub-signature-256");
   const { appSecret } = getWhatsAppWebhookEnv();
 
@@ -35,7 +40,7 @@ export async function POST(request: Request) {
 
   after(async () => {
     try { await processMetaWebhook(parsed.data); }
-    catch (error) { console.error("Falha ao processar webhook WhatsApp", error); }
+    catch { console.error("Falha ao processar webhook WhatsApp"); }
   });
 
   return Response.json({ received: true });

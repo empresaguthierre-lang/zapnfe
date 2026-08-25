@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractOrderFromText, type CatalogProduct } from "@/lib/orders/extract-order";
 import type { MetaWebhook } from "@/lib/whatsapp/schemas";
+import { publicErrorMessage } from "@/lib/security/input";
 
 export async function processMetaWebhook(payload: MetaWebhook) {
   const supabase = createAdminClient();
@@ -44,7 +45,7 @@ export async function processMetaWebhook(payload: MetaWebhook) {
           });
           if (orderError) throw orderError;
         } catch (error) {
-          const detail = error instanceof Error ? error.message : "Falha desconhecida ao processar mensagem";
+          const detail = publicErrorMessage(error);
           await supabase.from("whatsapp_inbound_messages").update({ processing_status: "failed", processing_error: detail.slice(0, 1000), processed_at: new Date().toISOString() }).eq("id", inbound.id);
         }
       }

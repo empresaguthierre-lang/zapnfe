@@ -1,0 +1,55 @@
+name: Security gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run quality
+      - run: npm audit --audit-level=high
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install pinned OpenGrep
+        env:
+          OPENGREP_VERSION: "1.22.0"
+          OPENGREP_SHA256: "45bcd58440e397ed52c50e953ccf5948909ea77087c9186fc7d277216f62e319"
+        run: |
+          curl --fail --silent --show-error --location "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP_VERSION}/opengrep_manylinux_x86" --output opengrep
+          echo "${OPENGREP_SHA256}  opengrep" | sha256sum --check --strict
+          chmod +x opengrep
+          sudo mv opengrep /usr/local/bin/opengrep
+      - name: Scan OWASP and security rules
+        run: opengrep scan --error --config p/security-audit --config p/owasp-top-ten --sarif-output=opengrep.sarif .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opengrep-sarif
+          path: opengrep.sarif
+          if-no-files-found: ignore
