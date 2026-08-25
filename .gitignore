@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/zap-reports/
 
 # next.js
 /.next/

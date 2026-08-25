@@ -37,3 +37,13 @@
 - Gitleaks em push e pull request.
 - OpenGrep com regras de auditoria e OWASP Top 10.
 - ZAP Baseline manual contra URL Vercel Preview autorizada.
+
+### Exceções documentadas do ZAP
+
+As regras abaixo são ignoradas somente no baseline público e não autorizam o mesmo comportamento em APIs ou páginas autenticadas:
+
+- `10015`, `10049` e `10050`: cache esperado para HTML público e arquivos estáticos imutáveis. Respostas autenticadas ou com dados pessoais devem usar cache privado ou `no-store`.
+- `10098`: a CDN pode permitir leitura cross-origin de conteúdo público e arquivos estáticos sem credenciais. APIs continuam sem CORS aberto por padrão.
+- `10109`: identificação informativa de aplicação web moderna, sem vulnerabilidade associada.
+
+Wildcards de CSP e ausência de isolamento de origem não são exceções: devem falhar no baseline.

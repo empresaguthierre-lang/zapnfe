@@ -1,10 +1,10 @@
-name: OWASP ZAP Preview
+name: OWASP ZAP Authorized Target
 
 on:
   workflow_dispatch:
     inputs:
       preview_url:
-        description: "URL HTTPS do Vercel Preview a ser testado"
+        description: "URL HTTPS autorizada do ZapNFe na Vercel"
         required: true
         type: string
 
@@ -16,25 +16,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Validate Preview target
+      - name: Validate authorized target
         env:
           TARGET_URL: ${{ inputs.preview_url }}
         run: |
-          if [[ ! "$TARGET_URL" =~ ^https://[A-Za-z0-9.-]+\.vercel\.app/?$ ]]; then
-            echo "Somente URLs HTTPS de Vercel Preview são permitidas."
+          if [[ ! "$TARGET_URL" =~ ^https://zapnfe(-[A-Za-z0-9-]+)?\.vercel\.app/?$ ]]; then
+            echo "Somente URLs HTTPS autorizadas do projeto ZapNFe na Vercel são permitidas."
             exit 1
           fi
+      - name: Prepare report directory
+        run: |
+          mkdir -p "${{ github.workspace }}/zap-reports"
+          chmod 0777 "${{ github.workspace }}/zap-reports"
       - name: Run ZAP Baseline
         env:
           TARGET_URL: ${{ inputs.preview_url }}
         run: |
-          docker run --rm --volume "${{ github.workspace }}:/zap/wrk/:rw" --network host ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t "$TARGET_URL" -T 5 -r zap-report.html -J zap-report.json
+          docker run --rm \
+            --volume "${{ github.workspace }}/zap-reports:/zap/wrk/:rw" \
+            --volume "${{ github.workspace }}/.zap/rules.conf:/zap/rules.conf:ro" \
+            --network host \
+            ghcr.io/zaproxy/zaproxy:stable@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef \
+            zap-baseline.py -t "$TARGET_URL" -T 5 -c /zap/rules.conf -r zap-report.html -J zap-report.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
           name: zap-baseline-report
           path: |
-            zap-report.html
-            zap-report.json
+            zap-reports/zap-report.html
+            zap-reports/zap-report.json
           if-no-files-found: ignore
