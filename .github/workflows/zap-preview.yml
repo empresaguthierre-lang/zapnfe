@@ -1,0 +1,40 @@
+name: OWASP ZAP Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: "URL HTTPS do Vercel Preview a ser testado"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Preview target
+        env:
+          TARGET_URL: ${{ inputs.preview_url }}
+        run: |
+          if [[ ! "$TARGET_URL" =~ ^https://[A-Za-z0-9.-]+\.vercel\.app/?$ ]]; then
+            echo "Somente URLs HTTPS de Vercel Preview são permitidas."
+            exit 1
+          fi
+      - name: Run ZAP Baseline
+        env:
+          TARGET_URL: ${{ inputs.preview_url }}
+        run: |
+          docker run --rm --volume "${{ github.workspace }}:/zap/wrk/:rw" --network host ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "$TARGET_URL" -T 5 -r zap-report.html -J zap-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-baseline-report
+          path: |
+            zap-report.html
+            zap-report.json
+          if-no-files-found: ignore
