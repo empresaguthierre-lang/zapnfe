@@ -9,7 +9,8 @@
     "lint": "eslint",
     "check:lines": "node scripts/check-file-lines.mjs",
     "quality": "npm run check:lines && npm run lint && npm run build",
-    "security:audit": "npm audit --audit-level=high"
+    "security:audit": "npm audit --audit-level=high",
+    "test:gemini": "node --env-file=.env.local scripts/test-gemini-order.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
