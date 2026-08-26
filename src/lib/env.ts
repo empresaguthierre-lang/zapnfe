@@ -11,7 +11,7 @@ export function getSupabaseAdminEnv() {
 export function getGeminiEnv() {
   return {
     apiKey: nonEmpty.parse(process.env.GEMINI_API_KEY),
-    model: nonEmpty.parse(process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite"),
+    model: nonEmpty.parse(process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite"),
   };
 }
 
