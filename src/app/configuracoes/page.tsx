@@ -1,5 +1,6 @@
 import { FiCheckCircle, FiDatabase, FiFileText, FiMessageCircle, FiShield, FiZap } from "react-icons/fi";
 import { AppShell } from "@/components/app-shell";
+import { requireOrganizationRole } from "@/lib/auth/authorization";
 
 const integrations = [
   { name: "Supabase", description: "Autenticação, banco multiempresa e arquivos.", status: "Pendente", icon: FiDatabase },
@@ -8,7 +9,10 @@ const integrations = [
   { name: "Focus NFe", description: "Emissão fiscal inicialmente em homologação.", status: "Pendente", icon: FiFileText },
 ];
 
-export default function SettingsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function SettingsPage() {
+  await requireOrganizationRole(["admin"]);
   return (
     <AppShell active="settings" eyebrow="Ambiente" title="Configurações">
       <section className="page-intro"><div><h2>Integrações e segurança</h2><p>As credenciais serão inseridas diretamente nos ambientes, nunca no navegador, chat ou Git.</p></div></section>

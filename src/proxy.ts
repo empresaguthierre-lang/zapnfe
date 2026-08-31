@@ -1,4 +1,11 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+
+const protectedPrefixes = ["/pedidos", "/clientes", "/produtos", "/notas-fiscais", "/configuracoes"];
+
+function isProtectedPath(pathname: string) {
+  return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
 
 function getSupabaseOrigin() {
   const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,7 +19,12 @@ function getSupabaseOrigin() {
   }
 }
 
-export function proxy(request: NextRequest) {
+function applySecurityHeaders(response: NextResponse, contentSecurityPolicy: string) {
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
+  return response;
+}
+
+export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDevelopment = process.env.NODE_ENV === "development";
   const supabaseOrigin = getSupabaseOrigin();
@@ -37,9 +49,43 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
-  return response;
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
+  const requiresAuthentication = isProtectedPath(request.nextUrl.pathname);
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (requiresAuthentication && (!supabaseUrl || !publishableKey)) {
+    return applySecurityHeaders(new NextResponse("Serviço de autenticação indisponível.", { status: 503 }), contentSecurityPolicy);
+  }
+
+  if (supabaseUrl && publishableKey) {
+    const supabase = createServerClient(supabaseUrl, publishableKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet, authHeaders) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request: { headers: requestHeaders } });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          Object.entries(authHeaders).forEach(([name, value]) => response.headers.set(name, value));
+        },
+      },
+    });
+
+    const { data, error } = await supabase.auth.getClaims();
+    if (requiresAuthentication && (error || !data?.claims)) {
+      const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+      for (const header of ["cache-control", "expires", "pragma"]) {
+        const value = response.headers.get(header);
+        if (value) redirectResponse.headers.set(header, value);
+      }
+      return applySecurityHeaders(redirectResponse, contentSecurityPolicy);
+    }
+  }
+
+  return applySecurityHeaders(response, contentSecurityPolicy);
 }
 
 export const config = {

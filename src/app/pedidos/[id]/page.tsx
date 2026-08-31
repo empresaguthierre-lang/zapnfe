@@ -4,9 +4,13 @@ import { FiArrowLeft } from "react-icons/fi";
 import { AppShell } from "@/components/app-shell";
 import { OrderReview } from "@/components/order-review";
 import { StatusBadge } from "@/components/status-badge";
+import { requireOrganizationMember } from "@/lib/auth/authorization";
 import { customerForOrder, formatDateTime, orders } from "@/lib/demo-data";
 
+export const dynamic = "force-dynamic";
+
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireOrganizationMember();
   const { id } = await params;
   const order = orders.find((candidate) => candidate.id === id);
   if (!order) notFound();
