@@ -42,7 +42,7 @@ export async function AppShell({ active, eyebrow, title, actions, children }: Ap
         <div className="sidebar-bottom">
           {member?.role === "admin" ? <Link className={`nav-item ${active === "settings" ? "active" : ""}`} href="/configuracoes"><FiSettings /><span>Configurações</span></Link> : null}
           {user ? <form action={logoutAction} className="nav-form"><button className="nav-item" type="submit"><FiLogOut /><span>Sair</span></button></form> : <Link className="nav-item" href="/login"><FiLogIn /><span>Entrar</span></Link>}
-          <div className="company-card"><span className="company-avatar">{initials}</span><span><strong>{member?.organizationName ?? (user?.email || "Zapala Atacado")}</strong><small>{member ? roleLabels[member.role] : user ? "Sem vínculo ativo" : "Dados demonstrativos"}</small></span></div>
+          <div className="company-card"><span className="company-avatar">{initials}</span><span><strong>{member?.organizationName ?? (user?.email || "Zapala Atacado")}</strong><small>{member ? roleLabels[member.role] : user ? "Sem vínculo ativo" : "Acesso público"}</small></span></div>
         </div>
       </aside>
 
@@ -61,7 +61,7 @@ export async function AppShell({ active, eyebrow, title, actions, children }: Ap
 function LegalFooter() {
   return (
     <footer className="legal-footer">
-      <span>ZapNFe · Ambiente de demonstração</span>
+      <span>ZapNFe · Operação protegida por organização</span>
       <nav><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/exclusao-de-dados">Exclusão de dados</Link></nav>
     </footer>
   );
