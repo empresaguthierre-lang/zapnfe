@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { FiFileText, FiGrid, FiPackage, FiSettings, FiShoppingBag, FiUsers } from "react-icons/fi";
+import { FiFileText, FiGrid, FiLogIn, FiLogOut, FiPackage, FiSettings, FiShoppingBag, FiUsers } from "react-icons/fi";
+import { logoutAction } from "@/app/auth/actions";
+import { getAuthorizationContext, type MemberRole } from "@/lib/auth/authorization";
 
 export type AppSection = "dashboard" | "orders" | "customers" | "products" | "invoices" | "settings";
 
@@ -20,7 +22,12 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-export function AppShell({ active, eyebrow, title, actions, children }: AppShellProps) {
+const roleLabels: Record<MemberRole, string> = { admin: "Administrador", manager: "Gestor", operator: "Operador" };
+
+export async function AppShell({ active, eyebrow, title, actions, children }: AppShellProps) {
+  const { user, member } = await getAuthorizationContext();
+  const initials = member?.organizationName.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase() ?? "ZA";
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -33,8 +40,9 @@ export function AppShell({ active, eyebrow, title, actions, children }: AppShell
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <Link className={`nav-item ${active === "settings" ? "active" : ""}`} href="/configuracoes"><FiSettings /><span>Configurações</span></Link>
-          <div className="company-card"><span className="company-avatar">ZA</span><span><strong>Zapala Atacado</strong><small>Dados demonstrativos</small></span></div>
+          {member?.role === "admin" ? <Link className={`nav-item ${active === "settings" ? "active" : ""}`} href="/configuracoes"><FiSettings /><span>Configurações</span></Link> : null}
+          {user ? <form action={logoutAction} className="nav-form"><button className="nav-item" type="submit"><FiLogOut /><span>Sair</span></button></form> : <Link className="nav-item" href="/login"><FiLogIn /><span>Entrar</span></Link>}
+          <div className="company-card"><span className="company-avatar">{initials}</span><span><strong>{member?.organizationName ?? (user?.email || "Zapala Atacado")}</strong><small>{member ? roleLabels[member.role] : user ? "Sem vínculo ativo" : "Dados demonstrativos"}</small></span></div>
         </div>
       </aside>
 

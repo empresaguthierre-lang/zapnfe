@@ -1,7 +1,11 @@
 import { FiCheckCircle, FiClock, FiFileText, FiLock } from "react-icons/fi";
 import { AppShell } from "@/components/app-shell";
+import { requireOrganizationMember } from "@/lib/auth/authorization";
 
-export default function InvoicesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function InvoicesPage() {
+  await requireOrganizationMember();
   return (
     <AppShell active="invoices" eyebrow="Fiscal" title="Notas fiscais">
       <section className="page-intro"><div><h2>Emissão preparada para homologação</h2><p>A estrutura fiscal pode ser construída agora; nenhuma nota real será emitida sem revisão e credenciais.</p></div></section>

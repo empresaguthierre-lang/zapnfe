@@ -10,7 +10,8 @@
     "check:lines": "node scripts/check-file-lines.mjs",
     "quality": "npm run check:lines && npm run lint && npm run build",
     "security:audit": "npm audit --audit-level=high",
-    "test:gemini": "node --env-file=.env.local scripts/test-gemini-order.mjs"
+    "test:gemini": "node --env-file=.env.local scripts/test-gemini-order.mjs",
+    "bootstrap:admin": "node --env-file=.env.local scripts/bootstrap-admin.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
@@ -20,6 +21,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-icons": "^5.7.0",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

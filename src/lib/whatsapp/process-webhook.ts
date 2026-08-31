@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractOrderFromText, type CatalogProduct } from "@/lib/orders/extract-order";
 import type { MetaWebhook } from "@/lib/whatsapp/schemas";
