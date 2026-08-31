@@ -45,5 +45,8 @@ As regras abaixo são ignoradas somente no baseline público e não autorizam o 
 - `10015`, `10049` e `10050`: cache esperado para HTML público e arquivos estáticos imutáveis. Respostas autenticadas ou com dados pessoais devem usar cache privado ou `no-store`.
 - `10098`: a CDN pode permitir leitura cross-origin de conteúdo público e arquivos estáticos sem credenciais. APIs continuam sem CORS aberto por padrão.
 - `10109`: identificação informativa de aplicação web moderna, sem vulnerabilidade associada.
+- `10031`: o ZAP marcou os campos internos `$ACTION_*` gerados pelo Next.js. Eles não são renderizados como HTML da aplicação; React continua escapando saídas e toda entrada útil da action é validada por schema no servidor.
+- `10111`: identifica corretamente a requisição de autenticação e é somente informativa.
+- `10202`: Server Actions não usam token CSRF em campo oculto. O framework aceita apenas `POST` e rejeita a action quando `Origin` não corresponde a `Host`/`X-Forwarded-Host`; cookies de sessão continuam com as proteções do Supabase.
 
 Wildcards de CSP e ausência de isolamento de origem não são exceções: devem falhar no baseline.
