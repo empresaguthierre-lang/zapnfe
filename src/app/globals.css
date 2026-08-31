@@ -884,3 +884,56 @@ a.data-row:hover {
     padding: 25px 20px;
   }
 }
+
+.status-approved {
+  background: #e6f6f1;
+  color: #167869;
+}
+
+.status-cancelled {
+  background: #f5e8e8;
+  color: #9a4747;
+}
+
+.live-data-banner {
+  border-color: #bfe2d8;
+  background: #edf9f5;
+  color: #216c60;
+}
+
+.review-notes {
+  grid-column: 1 / -1;
+}
+
+.review-notes textarea {
+  width: 100%;
+  min-height: 78px;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid #d7e0e5;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.action-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 2px;
+  padding: 10px;
+  border-radius: 9px;
+  background: #faeaea;
+  color: #9a3f3f;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.product-table-live .data-row {
+  grid-template-columns: minmax(220px, 1.5fr) 130px minmax(190px, 1fr) 85px 110px 100px;
+}
+
+.customer-table-live .data-row {
+  grid-template-columns: minmax(200px, 1.3fr) 160px minmax(170px, 1fr) 130px 90px 130px;
+}

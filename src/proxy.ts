@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const protectedPrefixes = ["/pedidos", "/clientes", "/produtos", "/notas-fiscais", "/configuracoes"];
 
 function isProtectedPath(pathname: string) {
-  return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return pathname === "/" || protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function getSupabaseOrigin() {
