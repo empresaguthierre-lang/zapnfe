@@ -34,13 +34,14 @@ function reviewErrorMessage(message: string) {
 }
 
 export async function saveOrderReviewAction(input: unknown): Promise<ReviewActionResult> {
-  await requireOrganizationMember();
+  const member = await requireOrganizationMember();
   const parsed = reviewSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Os dados da conferência são inválidos." };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("save_order_review", {
     target_order_id: parsed.data.orderId,
+    expected_organization_id: member.organizationId,
     expected_order_updated_at: parsed.data.expectedUpdatedAt,
     review_items: parsed.data.items.map((item) => ({
       id: item.id,

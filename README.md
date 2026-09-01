@@ -43,3 +43,5 @@ As integrações fiscal e de WhatsApp devem começar em homologação/teste. A p
 ## Fase 1
 
 O webhook seguro, a extração estruturada pelo Gemini e o schema multiempresa do Supabase estão descritos em [docs/FASE_1_WHATSAPP_GEMINI.md](docs/FASE_1_WHATSAPP_GEMINI.md).
+
+O planejamento completo em formato de backlog Jira está em [docs/ROADMAP_JIRA.md](docs/ROADMAP_JIRA.md).
