@@ -49,6 +49,7 @@ export type OrderSummary = {
   customerPhone: string | null;
   createdAt: string;
   status: OrderStatus;
+  financial_status: string;
   total: number;
   itemCount: number;
 };
@@ -56,11 +57,13 @@ export type OrderSummary = {
 export type OrderDetail = {
   id: string;
   number: number;
+  customerId: string;
   customerName: string;
   customerPhone: string | null;
   createdAt: string;
   updatedAt: string;
   status: OrderStatus;
+  financial_status: string;
   sourceMessage: string;
   confidence: number;
   discount: number;
