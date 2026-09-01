@@ -1,0 +1,1 @@
+export default function ErpLoading() { return <div className="erp-loading" aria-label="Carregando ERP"><div className="erp-skeleton" /><div className="erp-skeleton" /><div className="erp-skeleton" /></div>; }
