@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { reverseMovementAction } from "@/app/erp/estoque/actions";
+import { reverseMovementAction } from "@/app/estoque/actions";
 import { SubmitButton } from "./submit-button";
 
 export function ReversalForm({ movementId, disabled }: { movementId: string; disabled?: boolean }) {

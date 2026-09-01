@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function InvoicesPage() {
   await requireOrganizationMember();
   return (
-    <AppShell active="invoices" eyebrow="Fiscal" title="Notas fiscais">
+    <AppShell active="fiscal" eyebrow="Fiscal" title="Notas fiscais">
       <section className="page-intro"><div><h2>Emissão preparada para homologação</h2><p>A estrutura fiscal pode ser construída agora; nenhuma nota real será emitida sem revisão e credenciais.</p></div></section>
       <section className="readiness-grid">
         <article className="panel readiness-card done"><FiCheckCircle /><div><strong>Pedido conferido</strong><p>Tela de revisão, totais e bloqueios disponíveis.</p></div></article>

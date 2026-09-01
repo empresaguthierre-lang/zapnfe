@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveBranchAction } from "@/app/erp/configuracoes/actions";
+import { saveBranchAction } from "@/app/configuracoes/actions";
 import type { Branch } from "@/lib/erp/organization/queries";
 import { SubmitButton } from "./submit-button";
 

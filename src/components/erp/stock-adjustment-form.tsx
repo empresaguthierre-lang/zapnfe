@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { adjustStockAction } from "@/app/erp/estoque/actions";
+import { adjustStockAction } from "@/app/estoque/actions";
 import type { SelectOption } from "@/lib/erp/shared/types";
 import { SubmitButton } from "./submit-button";
 

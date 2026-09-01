@@ -95,3 +95,31 @@ export async function getErpDashboard() {
   const totalUnits = (stock ?? []).reduce((sum, row) => sum + Number(row.quantity_on_hand ?? 0), 0);
   return { products: products ?? 0, customers: customers ?? 0, suppliers: suppliers ?? 0, lowStock, totalUnits };
 }
+
+export async function getProductStock(productId: string) {
+  const member = await requireOrganizationMember();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('inventory_overview')
+    .select('quantity_on_hand, quantity_reserved, quantity_available, stock_status')
+    .eq('organization_id', member.organizationId)
+    .eq('product_id', productId)
+    .maybeSingle();
+  
+  if (error) return null;
+  return data;
+}
+
+export async function getProductReservations(productId: string) {
+  const member = await requireOrganizationMember();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('inventory_reservation_details')
+    .select('*')
+    .eq('organization_id', member.organizationId)
+    .eq('product_id', productId)
+    .order('reserved_at', { ascending: true });
+  
+  if (error) return [];
+  return data;
+}
