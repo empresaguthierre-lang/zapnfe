@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { saveProductAction } from "@/app/erp/produtos/actions";
+import { saveProductAction } from "@/app/produtos/actions";
 import type { ProductDetail } from "@/lib/erp/catalog/queries";
 import type { SelectOption } from "@/lib/erp/shared/types";
 import { SubmitButton } from "./submit-button";

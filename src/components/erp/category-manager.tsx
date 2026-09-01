@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveCategoryAction } from "@/app/erp/produtos/actions";
+import { saveCategoryAction } from "@/app/produtos/actions";
 import type { CategoryRow } from "@/lib/erp/catalog/queries";
 import { SubmitButton } from "./submit-button";
 

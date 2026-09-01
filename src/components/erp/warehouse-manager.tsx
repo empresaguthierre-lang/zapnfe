@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveWarehouseAction } from "@/app/erp/estoque/actions";
+import { saveWarehouseAction } from "@/app/estoque/actions";
 import type { WarehouseRow } from "@/lib/erp/inventory/queries";
 import type { Branch } from "@/lib/erp/organization/queries";
 import { SubmitButton } from "./submit-button";

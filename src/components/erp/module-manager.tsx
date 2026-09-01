@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { setModuleAction } from "@/app/erp/configuracoes/actions";
+import { setModuleAction } from "@/app/configuracoes/actions";
 import type { ErpModule } from "@/lib/erp/organization/queries";
 import { SubmitButton } from "./submit-button";
 

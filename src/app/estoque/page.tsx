@@ -1,0 +1,13 @@
+import Link from "next/link";
+import { AppShell } from "@/components/app-shell";
+import { DebouncedSearch } from "@/components/erp/debounced-search";
+import { Pagination } from "@/components/erp/pagination";
+import { StockAdjustmentForm } from "@/components/erp/stock-adjustment-form";
+import { getInventoryOptions, listInventory } from "@/lib/erp/inventory/queries";
+import { requireErpModule } from "@/lib/erp/organization/queries";
+import { parseListQuery } from "@/lib/erp/shared/query";
+
+export const dynamic = "force-dynamic";
+export default async function InventoryPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) { await requireErpModule("inventory"); const query = parseListQuery(await searchParams); const [result, options] = await Promise.all([listInventory(query), getInventoryOptions()]); return <AppShell active="inventory" eyebrow="Estoque" title="Saldos"><section className="erp-toolbar"><DebouncedSearch placeholder="Produto, SKU ou código de barras" /><div className="erp-filter-links"><Link className={!query.status ? "active" : ""} href="/estoque">Todos</Link><Link className={query.status === "low" ? "active" : ""} href="/estoque?status=low">Baixo</Link><Link className={query.status === "out" ? "active" : ""} href="/estoque?status=out">Sem estoque</Link></div></section><div className="panel erp-table-wrap"><table className="erp-table"><thead><tr><th>SKU</th><th>Produto</th><th>Em mãos</th><th>Reservado</th><th>Disponível</th><th>Mínimo</th><th>Situação</th></tr></thead><tbody>{result.rows.map((item) => <tr key={item.productId}><td><Link href={`/erp/produtos/${item.productId}`}>{item.sku}</Link></td><td><strong>{item.name}</strong><small>{item.categoryName ?? "Sem categoria"}</small></td><td>{item.onHand.toLocaleString("pt-BR")}</td><td>{item.reserved.toLocaleString("pt-BR")}</td><td><strong>{item.available.toLocaleString("pt-BR")}</strong></td><td>{item.minimum.toLocaleString("pt-BR")}</td><td><span className={`erp-status ${item.status === "normal" ? "ok" : item.status === "low" ? "warn" : "danger"}`}>{stockLabel(item.status)}</span></td></tr>)}</tbody></table>{result.rows.length === 0 ? <div className="erp-empty"><strong>Nenhum saldo encontrado</strong><p>Produtos controlados aparecerão depois da primeira movimentação.</p></div> : null}</div><Pagination page={result.page} count={result.count} pageSize={result.pageSize} basePath="/estoque" query={{ q: query.q, status: query.status }} /><StockAdjustmentForm warehouses={options.warehouses} products={options.products} /></AppShell>; }
+function stockLabel(status: string) { return status === "normal" ? "Normal" : status === "low" ? "Baixo" : status === "out" ? "Sem estoque" : status; }
+
