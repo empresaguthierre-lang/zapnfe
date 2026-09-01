@@ -1,103 +1,198 @@
 begin;
 
--- Create a view for reservation details
+-- Create a view for reservation details (Fixed schema)
 create or replace view public.inventory_reservation_details as
 select
   r.id as reservation_id,
   r.organization_id,
   r.product_id,
   r.warehouse_id,
-  r.order_id,
+  r.source_type,
+  r.source_id,
   r.quantity,
   r.status as reservation_status,
   r.created_at as reserved_at,
+  o.id as order_id,
   o.number as order_number,
   o.status as order_status,
   o.total as order_total,
   o.created_at as order_date,
   c.name as customer_name
 from public.stock_reservations r
-join public.orders o on o.id = r.order_id
+left join public.order_items oi on oi.id = r.source_id and r.source_type = 'order_item'
+left join public.orders o on o.id = oi.order_id
 left join public.customers c on c.id = o.customer_id
 where r.status = 'active';
 
 grant select on public.inventory_reservation_details to authenticated;
 
--- Create audit table for manual reallocation
-create table if not exists public.stock_reservation_audits (
-  id uuid primary key default gen_random_uuid(),
-  organization_id uuid not null references public.organizations(id) on delete cascade,
-  reservation_id uuid not null references public.stock_reservations(id) on delete cascade,
-  from_order_id uuid references public.orders(id) on delete set null,
-  to_order_id uuid references public.orders(id) on delete set null,
-  quantity numeric not null,
-  reason text not null,
-  created_at timestamptz not null default now(),
-  created_by uuid references auth.users(id) on delete set null
-);
-
-alter table public.stock_reservation_audits enable row level security;
-grant select on public.stock_reservation_audits to authenticated;
-
-create policy reservation_audits_select on public.stock_reservation_audits for select to authenticated using (public.is_organization_member(organization_id));
-
--- RPC for reallocation
-create or replace function public.inventory_reallocate_reservation(
-  target_reservation_id uuid,
-  new_order_id uuid,
-  reallocation_reason text
-)
+-- Function to atomically approve order and reserve stock
+create or replace function public.approve_order_and_reserve_stock(order_id_param uuid)
 returns void
 language plpgsql
 security definer
 set search_path = ''
-as $$$
+as $$
 declare
-  res_record record;
-  org_id uuid;
+  v_order_record public.orders%rowtype;
+  v_item public.order_items%rowtype;
+  v_available numeric;
+  v_warehouse_id uuid;
+  v_user_id uuid;
+  v_track_stock boolean;
 begin
-  select * into res_record from public.stock_reservations where id = target_reservation_id and status = 'active' for update;
+  -- 1. Get the current user
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  -- 2. Lock the order row (atomic)
+  select * into v_order_record
+  from public.orders
+  where id = order_id_param
+  for update;
+
   if not found then
-    raise exception 'RESERVATION_NOT_FOUND_OR_INACTIVE';
+    raise exception 'ORDER_NOT_FOUND';
   end if;
 
-  org_id := res_record.organization_id;
-
-  if auth.uid() is null or not public.erp_can_manage_org(org_id) then
-    raise exception 'INVENTORY_ACCESS_DENIED';
+  -- 3. Validate status
+  if v_order_record.status = 'approved' then
+    raise exception 'ORDER_ALREADY_APPROVED';
   end if;
 
-  if reallocation_reason is null or length(trim(reallocation_reason)) < 5 then
-    raise exception 'REALLOCATION_REASON_TOO_SHORT';
+  if v_order_record.status != 'reviewed' then
+    raise exception 'ORDER_MUST_BE_REVIEWED';
   end if;
 
-  -- Record audit
-  insert into public.stock_reservation_audits (
-    organization_id,
-    reservation_id,
-    from_order_id,
-    to_order_id,
-    quantity,
-    reason,
-    created_by
+  -- Get default warehouse for the organization (assuming the first active one)
+  select id into v_warehouse_id
+  from public.warehouses
+  where organization_id = v_order_record.organization_id and active = true
+  order by name asc
+  limit 1;
+
+  if v_warehouse_id is null then
+    raise exception 'NO_ACTIVE_WAREHOUSE';
+  end if;
+
+  -- 4. Process items
+  for v_item in
+    select * from public.order_items where order_id = order_id_param
+  loop
+    -- Only reserve if the product tracks stock
+    select track_stock into v_track_stock from public.products where id = v_item.product_id;
+
+    if v_track_stock = true then
+
+      -- Check availability
+      select quantity_available into v_available
+      from public.inventory_overview
+      where product_id = v_item.product_id and organization_id = v_order_record.organization_id;
+
+      if v_available is null or v_available < v_item.quantity then
+        raise exception 'INSUFFICIENT_STOCK_FOR_PRODUCT:%', v_item.product_id;
+      end if;
+
+      -- Check for existing reservation (idempotency)
+      if exists (
+        select 1 from public.stock_reservations
+        where source_type = 'order_item' and source_id = v_item.id and status = 'active'
+      ) then
+        raise exception 'RESERVATION_ALREADY_EXISTS_FOR_ITEM:%', v_item.id;
+      end if;
+
+      -- Create reservation
+      insert into public.stock_reservations (
+        organization_id, warehouse_id, product_id, source_type, source_id, quantity, status
+      ) values (
+        v_order_record.organization_id, v_warehouse_id, v_item.product_id, 'order_item', v_item.id, v_item.quantity, 'active'
+      );
+
+    end if;
+  end loop;
+
+  -- 5. Update order status
+  update public.orders
+  set status = 'approved',
+      approved_at = now(),
+      approved_by = v_user_id
+  where id = order_id_param;
+
+  -- 6. Log business event
+  insert into public.business_events (
+    organization_id, event_type, entity_type, entity_id, actor_id, payload
   ) values (
-    org_id,
-    res_record.id,
-    res_record.order_id,
-    new_order_id,
-    res_record.quantity,
-    trim(reallocation_reason),
-    auth.uid()
+    v_order_record.organization_id,
+    'order.approved',
+    'order',
+    order_id_param,
+    v_user_id,
+    jsonb_build_object('order_number', v_order_record.number)
   );
-
-  -- Update reservation
-  update public.stock_reservations
-  set order_id = new_order_id, updated_at = now()
-  where id = target_reservation_id;
 end;
-$$$;
+$$;
 
-revoke all on function public.inventory_reallocate_reservation(uuid, uuid, text) from public, anon;
-grant execute on function public.inventory_reallocate_reservation(uuid, uuid, text) to authenticated, service_role;
+revoke all on function public.approve_order_and_reserve_stock(uuid) from public, anon;
+grant execute on function public.approve_order_and_reserve_stock(uuid) to authenticated, service_role;
+
+-- Function to atomically cancel order and release stock
+create or replace function public.cancel_order_and_release_stock(order_id_param uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_order_record public.orders%rowtype;
+  v_user_id uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'NOT_AUTHENTICATED';
+  end if;
+
+  select * into v_order_record
+  from public.orders
+  where id = order_id_param
+  for update;
+
+  if not found then
+    raise exception 'ORDER_NOT_FOUND';
+  end if;
+
+  if v_order_record.status = 'cancelled' then
+    raise exception 'ORDER_ALREADY_CANCELLED';
+  end if;
+
+  -- Release reservations (mark as released, do not delete)
+  update public.stock_reservations
+  set status = 'released', updated_at = now()
+  where source_type = 'order_item'
+    and status = 'active'
+    and source_id in (select id from public.order_items where order_id = order_id_param);
+
+  -- Update order status
+  update public.orders
+  set status = 'cancelled'
+  where id = order_id_param;
+
+  -- Log business event
+  insert into public.business_events (
+    organization_id, event_type, entity_type, entity_id, actor_id, payload
+  ) values (
+    v_order_record.organization_id,
+    'order.cancelled',
+    'order',
+    order_id_param,
+    v_user_id,
+    jsonb_build_object('order_number', v_order_record.number)
+  );
+end;
+$$;
+
+revoke all on function public.cancel_order_and_release_stock(uuid) from public, anon;
+grant execute on function public.cancel_order_and_release_stock(uuid) to authenticated, service_role;
 
 commit;

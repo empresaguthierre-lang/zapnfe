@@ -24,10 +24,20 @@ export function OrdersList({ orders }: { orders: OrderSummary[] }) {
         <span className="result-count">{filtered.length} {filtered.length === 1 ? "pedido" : "pedidos"}</span>
       </div>
       <div className="data-table order-table">
-        <div className="data-row data-header"><span>Pedido</span><span>Cliente</span><span>Entrada</span><span>Total</span><span>Status</span><span /></div>
+        <div className="data-row data-header" style={{ gridTemplateColumns: "1fr 2fr 1fr 1fr 1fr 1fr 40px" }}>
+          <span>Pedido</span><span>Cliente</span><span>Entrada</span><span>Total</span><span>Status</span><span>Financeiro</span><span />
+        </div>
         {filtered.map((order) => (
-          <Link className="data-row" href={`/pedidos/${order.id}`} key={order.id}>
-            <strong>#{order.number}</strong><span><b>{order.customerName}</b><small>{order.itemCount} {order.itemCount === 1 ? "item" : "itens"}</small></span><span>{formatDateTime(order.createdAt)}</span><strong>{formatCurrency(order.total)}</strong><StatusBadge status={order.status} /><FiChevronRight />
+          <Link className="data-row" style={{ gridTemplateColumns: "1fr 2fr 1fr 1fr 1fr 1fr 40px" }} href={`/pedidos/${order.id}`} key={order.id}>
+            <strong>#{order.number}</strong>
+            <span><b>{order.customerName}</b><small>{order.itemCount} {order.itemCount === 1 ? "item" : "itens"}</small></span>
+            <span>{formatDateTime(order.createdAt)}</span>
+            <strong>{formatCurrency(order.total)}</strong>
+            <StatusBadge status={order.status} />
+            <span style={{ fontSize: "0.85em", display: "inline-flex", alignItems: "center", gap: 4, color: order.financial_status === 'not_generated' ? "var(--text-secondary)" : order.financial_status === 'generated' ? "var(--primary)" : order.financial_status === 'paid' ? "var(--success)" : "inherit" }}>
+              {order.financial_status === 'not_generated' ? "○ Não gerado" : order.financial_status === 'generated' ? "💰 Gerado" : order.financial_status === 'partially_paid' ? "⏳ Parcial" : order.financial_status === 'paid' ? "✅ Pago" : order.financial_status === 'cancelled' ? "❌ Cancelado" : "🔄 Estornado"}
+            </span>
+            <FiChevronRight />
           </Link>
         ))}
       </div>
