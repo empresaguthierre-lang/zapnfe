@@ -1,14 +1,52 @@
-import { 
+﻿import { 
   FiscalProvider, 
   IssueInvoiceInput, IssueInvoiceResult,
   GetInvoiceStatusInput, GetInvoiceStatusResult,
   CancelInvoiceInput, CancelInvoiceResult,
   CorrectInvoiceInput, CorrectInvoiceResult,
   DownloadFiscalDocumentInput, FiscalFileResult,
-  CheckFiscalServiceInput, FiscalServiceStatusResult
+  CheckFiscalServiceInput, FiscalServiceStatusResult,
+  CanonicalInvoiceStatus
 } from "./contract";
 import { buildFocusPayload } from "../transformers/focus";
 import { resolveTax } from "../tax/resolve-tax";
+
+function classifyFocusResult(responseStatus: number, responseData: any): {
+  canonicalStatus: CanonicalInvoiceStatus;
+  isRetryableError: boolean;
+  errorCode: string;
+} {
+  // 2xx Success (Processing or Authorized)
+  if (responseStatus >= 200 && responseStatus < 300) {
+    if (responseData.status === "autorizado") {
+      return { canonicalStatus: "authorized", isRetryableError: false, errorCode: "" };
+    }
+    if (responseData.status === "processando") {
+      return { canonicalStatus: "processing", isRetryableError: false, errorCode: "" };
+    }
+    if (responseData.status === "erro_autorizacao" || responseData.status === "denegado") {
+      return { canonicalStatus: "rejected", isRetryableError: false, errorCode: "SEFAZ_AUTHORIZATION_REJECTED" };
+    }
+    if (responseData.status === "cancelado") {
+      return { canonicalStatus: "cancelled", isRetryableError: false, errorCode: "" };
+    }
+    return { canonicalStatus: "processing", isRetryableError: false, errorCode: "" };
+  }
+
+  // 4xx Client Errors (Validation, Auth, etc) - Never Retryable
+  if (responseStatus === 401 || responseStatus === 403) {
+    return { canonicalStatus: "error", isRetryableError: false, errorCode: "PROVIDER_AUTHENTICATION_ERROR" };
+  }
+  if (responseStatus === 415) {
+    return { canonicalStatus: "error", isRetryableError: false, errorCode: "PROVIDER_PROTOCOL_ERROR" };
+  }
+  if (responseStatus >= 400 && responseStatus < 500) {
+    return { canonicalStatus: "error", isRetryableError: false, errorCode: "PROVIDER_VALIDATION_ERROR" };
+  }
+
+  // 5xx Server Errors (Focus/SEFAZ Unavailable) - Retryable
+  return { canonicalStatus: "error", isRetryableError: true, errorCode: "PROVIDER_TEMPORARILY_UNAVAILABLE" };
+}
 
 export class FocusNFeProvider implements FiscalProvider {
   private getBaseUrl(environment: "homologation" | "production"): string {
@@ -19,7 +57,6 @@ export class FocusNFeProvider implements FiscalProvider {
 
   private getAuthHeader(token: string): Record<string, string> {
     if (!token) throw new Error("Missing Focus NFe API Token");
-    // HTTP Basic Auth: username = token, password = empty
     return {
       "Authorization": `Basic ${Buffer.from(token + ":").toString("base64")}`,
       "Content-Type": "application/json"
@@ -33,19 +70,12 @@ export class FocusNFeProvider implements FiscalProvider {
   async issueInvoice(input: IssueInvoiceInput): Promise<IssueInvoiceResult> {
     try {
       const baseUrl = this.getBaseUrl(input.environment);
-      
-      // 1. Resolve Tax -> Canonical Model
       const canonicalPayload = resolveTax(input.payload);
-      
-      // 2. Transformer -> Focus JSON
       const focusPayload = buildFocusPayload(canonicalPayload);
-      
-      // 3. Idempotency Key
       const referenceId = this.formatReference(input.invoiceId); 
 
-      // 4. Request with timeout setup (fetch does not have native timeout, using AbortController)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
       const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
 
@@ -59,42 +89,38 @@ export class FocusNFeProvider implements FiscalProvider {
         });
       } catch (networkErr: any) {
         if (networkErr.name === "AbortError") {
-           throw new Error("Focus NFe API network timeout");
+           return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "PROVIDER_TIMEOUT", error: "Focus NFe API network timeout" };
         }
-        throw networkErr;
+        return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "NETWORK_ERROR", error: networkErr.message };
       } finally {
         clearTimeout(timeoutId);
       }
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      // Normalize errors
-      if (!response.ok) {
-        // e.g. 400 Bad Request -> Validation error (Not retryable, should fail the invoice)
-        // 401 Unauthorized -> Configuration error (Not retryable automatically)
-        // 5xx Server Error -> Focus NFe is down (Retryable)
-        const isClientError = response.status >= 400 && response.status < 500;
-        
+      const classification = classifyFocusResult(response.status, data);
+
+      if (classification.canonicalStatus === "error" || classification.canonicalStatus === "rejected") {
         return {
           success: false,
-          canonicalStatus: isClientError ? "rejected" : "error",
-          error: data.mensagem || "Erro Focus NFe",
+          canonicalStatus: classification.canonicalStatus,
+          isRetryableError: classification.isRetryableError,
+          errorCode: classification.errorCode,
+          error: data.mensagem || data.codigo || "Erro Focus NFe",
           rawResponse: { http_status: response.status, provider_error_code: data.codigo, provider_message: data.mensagem }
         };
       }
 
-      // Focus returns status which could be processando, autorizado, etc.
-      // Usually POST to /v2/nfe with a new ref returns processando.
       return {
         success: true,
-        canonicalStatus: "processing",
+        canonicalStatus: classification.canonicalStatus,
         providerStatus: data.status,
         providerReference: referenceId, 
         rawResponse: { http_status: response.status, provider_status: data.status }
       };
 
     } catch (err: any) {
-      return { success: false, canonicalStatus: "error", error: err.message };
+      return { success: false, canonicalStatus: "error", isRetryableError: false, errorCode: "INTERNAL_ADAPTER_ERROR", error: err.message };
     }
   }
 
@@ -116,43 +142,39 @@ export class FocusNFeProvider implements FiscalProvider {
           signal: controller.signal
         });
       } catch (networkErr: any) {
-         if (networkErr.name === "AbortError") throw new Error("Focus NFe API network timeout");
-         throw networkErr;
+         if (networkErr.name === "AbortError") {
+           return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "PROVIDER_TIMEOUT", error: "Focus NFe API network timeout" };
+         }
+         return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "NETWORK_ERROR", error: networkErr.message };
       } finally {
          clearTimeout(timeoutId);
       }
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      
+      const classification = classifyFocusResult(response.status, data);
 
-      if (!response.ok) {
+      if (classification.canonicalStatus === "error" || classification.canonicalStatus === "rejected") {
         return { 
           success: false, 
-          canonicalStatus: "error", 
+          canonicalStatus: classification.canonicalStatus,
+          isRetryableError: classification.isRetryableError,
+          errorCode: classification.errorCode,
           error: data.mensagem || "Erro na consulta Focus", 
-          rawResponse: { http_status: response.status, provider_message: data.mensagem } 
+          rawResponse: { http_status: response.status, provider_status: data.status, provider_message: data.mensagem || data.mensagem_sefaz } 
         };
       }
 
-      const statusMap: Record<string, "processing" | "authorized" | "rejected" | "cancelled" | "error"> = {
-        "processando": "processing",
-        "autorizado": "authorized",
-        "erro_autorizacao": "rejected",
-        "denegado": "rejected",
-        "cancelado": "cancelled"
-      };
-
-      const canonicalStatus = statusMap[data.status] || "error";
-
       return {
         success: true,
-        canonicalStatus,
+        canonicalStatus: classification.canonicalStatus,
         providerStatus: data.status,
         accessKey: data.chave_nfe,
         authorizationProtocol: data.protocolo,
         rawResponse: { http_status: response.status, provider_status: data.status, provider_message: data.mensagem_sefaz }
       };
     } catch (err: any) {
-      return { success: false, canonicalStatus: "error", error: err.message };
+      return { success: false, canonicalStatus: "error", isRetryableError: false, errorCode: "INTERNAL_ADAPTER_ERROR", error: err.message };
     }
   }
 
@@ -165,16 +187,15 @@ export class FocusNFeProvider implements FiscalProvider {
   }
 
   async downloadXml(input: DownloadFiscalDocumentInput): Promise<FiscalFileResult> {
-    return { success: false, error: "NOT_IMPLEMENTED", contentType: "application/xml", fileData: "" };
+    return { success: false, error: "NOT_IMPLEMENTED" };
   }
 
   async downloadDanfe(input: DownloadFiscalDocumentInput): Promise<FiscalFileResult> {
-    return { success: false, error: "NOT_IMPLEMENTED", contentType: "application/pdf", fileData: "" };
+    return { success: false, error: "NOT_IMPLEMENTED" };
   }
 
   async checkServiceStatus(input: CheckFiscalServiceInput): Promise<FiscalServiceStatusResult> {
     return { online: true, message: "Ping ok" };
   }
 }
-
 

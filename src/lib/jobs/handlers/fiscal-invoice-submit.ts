@@ -46,7 +46,12 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
   // 5. Normalization & State Update
   if (!result.success) {
     if (result.canonicalStatus === "error") {
-      return { success: false, retryable: true, backoffMinutes: 2, error: result.error };
+      return { 
+        success: false, 
+        retryable: result.isRetryableError ?? false, 
+        backoffMinutes: 2, 
+        error: `[${result.errorCode}] ${result.error}` 
+      };
     }
   }
   
