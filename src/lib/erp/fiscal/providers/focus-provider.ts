@@ -8,6 +8,7 @@ import {
   CheckFiscalServiceInput, FiscalServiceStatusResult
 } from "./contract";
 import { buildFocusPayload } from "../transformers/focus";
+import { resolveTax } from "../tax/resolve-tax";
 
 export class FocusNFeProvider implements FiscalProvider {
   private getBaseUrl(environment: "homologation" | "production"): string {
@@ -16,40 +17,64 @@ export class FocusNFeProvider implements FiscalProvider {
       : "https://homologacao.focusnfe.com.br";
   }
 
-  private getAuthHeader(token: string): Record<string, string> {
+  private getAuthHeader(): Record<string, string> {
+    const token = process.env.FOCUS_NFE_API_TOKEN;
+    if (!token) throw new Error("Missing FOCUS_NFE_API_TOKEN in environment");
+    // HTTP Basic Auth: username = token, password = empty
     return {
       "Authorization": `Basic ${Buffer.from(token + ":").toString("base64")}`,
       "Content-Type": "application/json"
     };
   }
+  
+  private formatReference(invoiceId: string): string {
+    return "BRIDGE" + invoiceId.replace(/-/g, "").toUpperCase();
+  }
 
   async issueInvoice(input: IssueInvoiceInput): Promise<IssueInvoiceResult> {
     try {
       const baseUrl = this.getBaseUrl(input.environment);
-      const token = input.credentials?.apiToken || process.env.FOCUS_NFE_API_TOKEN;
       
-      if (!token) {
-        return { success: false, canonicalStatus: "error", error: "Focus NFe API token is missing" };
+      // 1. Resolve Tax -> Canonical Model
+      const canonicalPayload = resolveTax(input.payload);
+      
+      // 2. Transformer -> Focus JSON
+      const focusPayload = buildFocusPayload(canonicalPayload);
+      
+      // 3. Idempotency Key
+      const referenceId = this.formatReference(input.invoiceId); 
+
+      // 4. Request with timeout setup (fetch does not have native timeout, using AbortController)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+      let response;
+      try {
+        response = await fetch(`${baseUrl}/v2/nfe?ref=${referenceId}`, {
+          method: "POST",
+          headers: this.getAuthHeader(),
+          body: JSON.stringify(focusPayload),
+          signal: controller.signal
+        });
+      } catch (networkErr: any) {
+        if (networkErr.name === "AbortError") {
+           throw new Error("Focus NFe API network timeout");
+        }
+        throw networkErr;
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      // Generate the internal payload format
-      const payload = buildFocusPayload(input.payload || {});
-      const referenceId = input.invoiceId; // Focus uses ref as idempotency key
-
-      const response = await fetch(`${baseUrl}/v2/nfe?ref=${referenceId}`, {
-        method: "POST",
-        headers: this.getAuthHeader(token),
-        body: JSON.stringify(payload)
-      });
 
       const data = await response.json();
 
+      // Normalize errors
       if (!response.ok) {
+        // e.g. 400 Bad Request
         return {
           success: false,
-          canonicalStatus: "error", // Could be validation error
+          canonicalStatus: "error", // Outbox worker should retry on 5xx, or fail on 4xx depending on error
           error: data.mensagem || "Erro de validação Focus NFe",
-          rawResponse: data
+          rawResponse: { http_status: response.status, provider_error_code: data.codigo, provider_message: data.mensagem }
         };
       }
 
@@ -59,8 +84,8 @@ export class FocusNFeProvider implements FiscalProvider {
         success: true,
         canonicalStatus: "processing",
         providerStatus: data.status,
-        providerReference: referenceId, // We use the same reference to query later
-        rawResponse: data
+        providerReference: referenceId, 
+        rawResponse: { http_status: response.status, provider_status: data.status }
       };
 
     } catch (err: any) {
@@ -71,19 +96,34 @@ export class FocusNFeProvider implements FiscalProvider {
   async getInvoiceStatus(input: GetInvoiceStatusInput): Promise<GetInvoiceStatusResult> {
     try {
       const baseUrl = this.getBaseUrl(input.environment);
-      const token = input.credentials?.apiToken || process.env.FOCUS_NFE_API_TOKEN;
+      const referenceId = input.providerReference || this.formatReference(input.invoiceId);
       
-      if (!token) return { success: false, canonicalStatus: "error", error: "Focus NFe API token missing" };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(`${baseUrl}/v2/nfe/${input.providerReference}`, {
-        method: "GET",
-        headers: this.getAuthHeader(token)
-      });
+      let response;
+      try {
+        response = await fetch(`${baseUrl}/v2/nfe/${referenceId}`, {
+          method: "GET",
+          headers: this.getAuthHeader(),
+          signal: controller.signal
+        });
+      } catch (networkErr: any) {
+         if (networkErr.name === "AbortError") throw new Error("Focus NFe API network timeout");
+         throw networkErr;
+      } finally {
+         clearTimeout(timeoutId);
+      }
 
       const data = await response.json();
 
       if (!response.ok) {
-        return { success: false, canonicalStatus: "error", error: data.mensagem, rawResponse: data };
+        return { 
+          success: false, 
+          canonicalStatus: "error", 
+          error: data.mensagem || "Erro na consulta Focus", 
+          rawResponse: { http_status: response.status, provider_message: data.mensagem } 
+        };
       }
 
       const statusMap: Record<string, "processing" | "authorized" | "rejected" | "cancelled" | "error"> = {
@@ -102,7 +142,7 @@ export class FocusNFeProvider implements FiscalProvider {
         providerStatus: data.status,
         accessKey: data.chave_nfe,
         authorizationProtocol: data.protocolo,
-        rawResponse: data
+        rawResponse: { http_status: response.status, provider_status: data.status, provider_message: data.mensagem_sefaz }
       };
     } catch (err: any) {
       return { success: false, canonicalStatus: "error", error: err.message };
@@ -110,19 +150,19 @@ export class FocusNFeProvider implements FiscalProvider {
   }
 
   async cancelInvoice(input: CancelInvoiceInput): Promise<CancelInvoiceResult> {
-    throw new Error("Not implemented yet");
+    return { success: false, canonicalStatus: "error", error: "NOT_IMPLEMENTED" };
   }
 
   async correctInvoice(input: CorrectInvoiceInput): Promise<CorrectInvoiceResult> {
-    throw new Error("Not implemented yet");
+    return { success: false, canonicalStatus: "error", error: "NOT_IMPLEMENTED" };
   }
 
   async downloadXml(input: DownloadFiscalDocumentInput): Promise<FiscalFileResult> {
-    throw new Error("Not implemented yet");
+    return { success: false, error: "NOT_IMPLEMENTED", contentType: "application/xml", fileData: "" };
   }
 
   async downloadDanfe(input: DownloadFiscalDocumentInput): Promise<FiscalFileResult> {
-    throw new Error("Not implemented yet");
+    return { success: false, error: "NOT_IMPLEMENTED", contentType: "application/pdf", fileData: "" };
   }
 
   async checkServiceStatus(input: CheckFiscalServiceInput): Promise<FiscalServiceStatusResult> {
