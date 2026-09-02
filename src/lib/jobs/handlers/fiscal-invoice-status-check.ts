@@ -69,6 +69,7 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
       invoice_id: invoiceId,
       event_type: result.canonicalStatus === 'authorized' ? 'authorized' : 'rejected',
       description: `Retorno final: ${result.providerStatus} ${result.authorizationProtocol ? `Prot: ${result.authorizationProtocol}` : ''}`,
+      provider_response: result.rawResponse,
       created_by: null
     });
 

@@ -1,4 +1,4 @@
-export interface CanonicalFiscalItem {
+ï»¿export interface CanonicalFiscalItem {
   numero_item: number;
   codigo_produto: string;
   descricao: string;
@@ -59,70 +59,70 @@ export interface CanonicalFiscalPayload {
 }
 
 export function resolveTax(invoiceSnapshot: any): CanonicalFiscalPayload {
-  // In a complete ERP, this reads the organization tax regime (Simples vs Normal),
-  // state (UF) of origin and destination, and product fiscal profiles.
-  
-  // Hardcoded simple tax resolution for the MVP:
-  const isSimplesNacional = true;
-  const originState = invoiceSnapshot.uf_emitente || "SP";
-  const destState = invoiceSnapshot.buyer_address_state || "SP";
+  // Extract JSONB addresses (falling back to empty objects if missing)
+  const issuerAddress = invoiceSnapshot.issuer_address_snapshot || {};
+  const recipientAddress = invoiceSnapshot.recipient_address_snapshot || {};
+
+  const isSimplesNacional = invoiceSnapshot.issuer_tax_regime_snapshot === "simples_nacional" || true;
+  const originState = issuerAddress.state || "SP";
+  const destState = recipientAddress.state || "SP";
   const isInterstate = originState !== destState;
 
-  const resolvedItems = (invoiceSnapshot.items || []).map((item: any, index: number): CanonicalFiscalItem => {
-    // Determine CFOP
-    let cfop = item.cfop;
+  const resolvedItems = (invoiceSnapshot.invoice_items || []).map((item: any, index: number): CanonicalFiscalItem => {
+    // Note: invoice_items table uses product_name_snapshot, unit_price_snapshot, etc.
+    let cfop = item.cfop_snapshot;
     if (!cfop) {
       cfop = isInterstate ? "6102" : "5102"; // Venda de mercadoria adquirida ou recebida de terceiros
     }
 
     return {
       numero_item: index + 1,
-      codigo_produto: item.product_code || item.product_id,
-      descricao: item.product_name || "Produto Genérico",
-      ncm: item.ncm || "00000000",
+      codigo_produto: item.product_id,
+      descricao: item.product_name_snapshot || "Produto Generico",
+      ncm: item.ncm_snapshot || "00000000",
       cfop,
-      unidade_comercial: item.unit || "UN",
+      unidade_comercial: item.unit_snapshot || "UN",
       quantidade_comercial: item.quantity,
-      valor_unitario_comercial: item.unit_price,
-      valor_bruto: item.total_price,
+      valor_unitario_comercial: item.unit_price_snapshot,
+      valor_bruto: item.total_price_snapshot,
       // Tax regime rules
-      icms_situacao_tributaria: isSimplesNacional ? (item.csosn || "102") : (item.cst || "00"),
-      icms_origem: item.origin || "0",
-      pis_situacao_tributaria: "07", // Operação Isenta
+      icms_situacao_tributaria: isSimplesNacional ? (item.csosn_snapshot || "102") : (item.cst_snapshot || "00"),
+      icms_origem: item.origin_snapshot || "0",
+      pis_situacao_tributaria: "07", // Operacao Isenta
       cofins_situacao_tributaria: "07",
     };
   });
 
   return {
-    natureza_operacao: invoiceSnapshot.natureza_operacao || "Venda de mercadoria",
-    data_emissao: invoiceSnapshot.data_emissao || new Date().toISOString(),
+    natureza_operacao: invoiceSnapshot.operation_nature || "Venda de mercadoria",
+    data_emissao: invoiceSnapshot.issued_at || new Date().toISOString(),
     tipo_documento: "saida",
     finalidade_emissao: "normal",
     
     emitente: {
-      cnpj: invoiceSnapshot.cnpj_emitente,
-      nome: invoiceSnapshot.nome_emitente,
-      nome_fantasia: invoiceSnapshot.nome_fantasia_emitente,
-      logradouro: invoiceSnapshot.logradouro_emitente,
-      numero: invoiceSnapshot.numero_emitente,
-      bairro: invoiceSnapshot.bairro_emitente,
-      municipio: invoiceSnapshot.municipio_emitente,
-      uf: invoiceSnapshot.uf_emitente,
-      cep: invoiceSnapshot.cep_emitente,
-      inscricao_estadual: invoiceSnapshot.inscricao_estadual_emitente,
+      cnpj: invoiceSnapshot.issuer_cnpj_snapshot,
+      nome: invoiceSnapshot.issuer_legal_name_snapshot,
+      nome_fantasia: invoiceSnapshot.issuer_trade_name_snapshot || invoiceSnapshot.issuer_legal_name_snapshot,
+      logradouro: issuerAddress.street,
+      numero: issuerAddress.number,
+      bairro: issuerAddress.neighborhood,
+      municipio: issuerAddress.city,
+      uf: issuerAddress.state,
+      cep: issuerAddress.zip,
+      inscricao_estadual: invoiceSnapshot.issuer_ie_snapshot,
     },
 
     destinatario: {
-      nome: invoiceSnapshot.buyer_name,
-      cnpj_cpf: invoiceSnapshot.buyer_document,
-      logradouro: invoiceSnapshot.buyer_address_street,
-      numero: invoiceSnapshot.buyer_address_number,
-      bairro: invoiceSnapshot.buyer_address_neighborhood,
-      municipio: invoiceSnapshot.buyer_address_city,
-      uf: invoiceSnapshot.buyer_address_state,
-      cep: invoiceSnapshot.buyer_address_zip,
-      indicador_inscricao_estadual: invoiceSnapshot.buyer_state_registration ? "1" : "9",
-      inscricao_estadual: invoiceSnapshot.buyer_state_registration,
+      nome: invoiceSnapshot.recipient_name_snapshot,
+      cnpj_cpf: invoiceSnapshot.recipient_document_snapshot,
+      logradouro: recipientAddress.street,
+      numero: recipientAddress.number,
+      bairro: recipientAddress.neighborhood,
+      municipio: recipientAddress.city,
+      uf: recipientAddress.state,
+      cep: recipientAddress.zip,
+      indicador_inscricao_estadual: invoiceSnapshot.recipient_ie_indicator_snapshot || (invoiceSnapshot.recipient_ie_snapshot ? "1" : "9"),
+      inscricao_estadual: invoiceSnapshot.recipient_ie_snapshot,
     },
 
     itens: resolvedItems,
@@ -132,8 +132,8 @@ export function resolveTax(invoiceSnapshot: any): CanonicalFiscalPayload {
       valor: invoiceSnapshot.freight_value || 0,
     },
     valor_seguro: invoiceSnapshot.insurance_value || 0,
-    valor_produtos: invoiceSnapshot.items_total_value,
-    valor_total: invoiceSnapshot.total_value,
+    valor_produtos: invoiceSnapshot.items_total_value || 0,
+    valor_total: invoiceSnapshot.total_value || 0,
   };
 }
 
