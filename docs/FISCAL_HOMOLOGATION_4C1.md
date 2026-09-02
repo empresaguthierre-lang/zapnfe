@@ -1,6 +1,11 @@
-﻿# BRIDGE ERP — GATE FISCAL 4C.1
+# BRIDGE ERP — GATE FISCAL 4C.1
 
-Ambiente
+**Versão**: `fiscal-4c1-homologation-rc1`
+**Commit**: `c1388bbb7caece839d6787f8c9d09a0144318143`
+**Data**: 02/09/2026
+**Ambiente Focus**: Homologação
+
+## Pré-requisitos (Ambiente)
 - [ ] Focus homologação
 - [ ] Credencial via secret
 - [ ] Organização correta
