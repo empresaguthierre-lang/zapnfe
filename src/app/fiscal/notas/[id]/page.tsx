@@ -34,6 +34,14 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
     .eq("invoice_id", id)
     .order("event_date", { ascending: true });
 
+  const { data: outboxJob } = await supabase
+    .from("outbox_jobs")
+    .select("*")
+    .eq("entity_id", id)
+    .in("status", ["pending", "processing"])
+    .limit(1)
+    .maybeSingle();
+
   const orderNumber = (invoice.orders as any)?.number;
 
   return (
@@ -142,6 +150,52 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
+      <div className="panel" style={{ padding: 24, marginBottom: 24, border: "2px solid #e2e8f0" }}>
+        <h4 style={{ margin: "0 0 16px 0", fontSize: 13, textTransform: "uppercase", color: "var(--ink)", letterSpacing: "0.5px", display: "flex", justifyContent: "space-between" }}>
+          Processamento Fiscal (Technical Dashboard)
+          {invoice.status === "rejected" && <span style={{ color: "var(--danger)" }}>Rejeitado</span>}
+          {invoice.status === "authorized" && <span style={{ color: "#16a34a" }}>Autorizado</span>}
+        </h4>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, fontSize: 13 }}>
+          <div>
+            <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Status</span>
+            <strong>{invoice.status}</strong>
+          </div>
+          <div>
+            <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Provider</span>
+            <strong>Focus NFe {process.env.FOCUS_NFE_API_TOKEN ? "(Real)" : "(Mock)"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ambiente</span>
+            <strong>Homologação</strong>
+          </div>
+          <div>
+            <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Referência</span>
+            <strong style={{ fontFamily: "monospace" }}>{invoice.provider_reference || "N/A"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Chave / Protocolo</span>
+            <strong style={{ fontFamily: "monospace" }}>{invoice.provider_access_key || "N/A"} <br/> {invoice.provider_authorization_protocol || ""}</strong>
+          </div>
+          {outboxJob && (
+            <div style={{ background: "#f8fafc", padding: 8, borderRadius: 6, gridColumn: "span 3", display: "flex", gap: 16 }}>
+              <div>
+                <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fila (Outbox)</span>
+                <strong>{outboxJob.job_type} ({outboxJob.status})</strong>
+              </div>
+              <div>
+                <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tentativas</span>
+                <strong>{outboxJob.attempts} / {outboxJob.max_attempts}</strong>
+              </div>
+              <div>
+                <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Próxima</span>
+                <strong>{formatDateTime(outboxJob.available_at)}</strong>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {events && events.length > 0 && (
         <div className="panel" style={{ padding: 24 }}>
           <h4 style={{ margin: "0 0 16px 0", fontSize: 13, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Histórico de Eventos</h4>
@@ -149,11 +203,19 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
             {events.map(evt => (
               <div key={evt.id} style={{ display: "flex", gap: 12, alignItems: "flex-start", paddingBottom: 12, borderBottom: "1px solid var(--line)" }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--text-secondary)", marginTop: 6, flexShrink: 0 }} />
-                <div>
-                  <strong style={{ fontSize: 13 }}>{evt.event_type}</strong>
-                  <p style={{ margin: "2px 0 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
-                    {evt.description} — {(evt as any).created_by_user?.email || "Sistema"} — {formatDateTime(evt.event_date)}
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <strong style={{ fontSize: 13 }}>{evt.event_type}</strong>
+                    <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{formatDateTime(evt.event_date)}</span>
+                  </div>
+                  <p style={{ margin: "4px 0 0 0", fontSize: 13 }}>
+                    {evt.description} <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>— {(evt as any).created_by_user?.email || "Sistema"}</span>
                   </p>
+                  {(evt as any).provider_response && (
+                    <pre style={{ margin: "8px 0 0 0", padding: "8px", background: "#f8fafc", borderRadius: 4, fontSize: 11, color: "var(--text-secondary)", overflowX: "auto" }}>
+                      {JSON.stringify((evt as any).provider_response, null, 2)}
+                    </pre>
+                  )}
                 </div>
               </div>
             ))}
