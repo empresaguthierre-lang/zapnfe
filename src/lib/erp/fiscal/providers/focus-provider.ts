@@ -70,11 +70,15 @@ export class FocusNFeProvider implements FiscalProvider {
 
       // Normalize errors
       if (!response.ok) {
-        // e.g. 400 Bad Request
+        // e.g. 400 Bad Request -> Validation error (Not retryable, should fail the invoice)
+        // 401 Unauthorized -> Configuration error (Not retryable automatically)
+        // 5xx Server Error -> Focus NFe is down (Retryable)
+        const isClientError = response.status >= 400 && response.status < 500;
+        
         return {
           success: false,
-          canonicalStatus: "error", // Outbox worker should retry on 5xx, or fail on 4xx depending on error
-          error: data.mensagem || "Erro de validação Focus NFe",
+          canonicalStatus: isClientError ? "rejected" : "error",
+          error: data.mensagem || "Erro Focus NFe",
           rawResponse: { http_status: response.status, provider_error_code: data.codigo, provider_message: data.mensagem }
         };
       }
