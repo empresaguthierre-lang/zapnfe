@@ -1,4 +1,4 @@
-﻿export type CanonicalInvoiceStatus = 
+export type CanonicalInvoiceStatus = 
   | "draft"
   | "ready"
   | "submission_pending"
@@ -18,6 +18,16 @@ export type IssueInvoiceInput = {
   credentials: any;
 };
 
+export interface BaseFiscalResult {
+  success: boolean;
+  canonicalStatus: "processing" | "authorized" | "rejected" | "error" | "cancelled";
+  error?: string;
+  errorCode?: string;
+  isRetryableError?: boolean;
+  recoveryStrategy?: "status_check_first";
+  rawResponse?: any;
+}
+
 export type IssueInvoiceResult = {
   success: boolean;
   canonicalStatus: CanonicalInvoiceStatus;
@@ -27,6 +37,7 @@ export type IssueInvoiceResult = {
   error?: string;
   errorCode?: string;
   isRetryableError?: boolean;
+  recoveryStrategy?: "status_check_first";
 };
 
 export type GetInvoiceStatusInput = {
@@ -47,6 +58,7 @@ export type GetInvoiceStatusResult = {
   error?: string;
   errorCode?: string;
   isRetryableError?: boolean;
+  recoveryStrategy?: "status_check_first";
 };
 
 export type CancelInvoiceInput = {

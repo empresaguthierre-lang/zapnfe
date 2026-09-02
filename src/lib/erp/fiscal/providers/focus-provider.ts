@@ -1,4 +1,4 @@
-﻿import { 
+import { 
   FiscalProvider, 
   IssueInvoiceInput, IssueInvoiceResult,
   GetInvoiceStatusInput, GetInvoiceStatusResult,
@@ -88,8 +88,15 @@ export class FocusNFeProvider implements FiscalProvider {
           signal: controller.signal
         });
       } catch (networkErr: any) {
-        if (networkErr.name === "AbortError") {
-           return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "PROVIDER_TIMEOUT", error: "Focus NFe API network timeout" };
+        if (networkErr.name === "AbortError" || networkErr.code === "UND_ERR_CONNECT_TIMEOUT" || networkErr.code === "ECONNRESET") {
+           return { 
+             success: false, 
+             canonicalStatus: "error", 
+             isRetryableError: true, 
+             errorCode: "FOCUS_SUBMISSION_OUTCOME_UNKNOWN", 
+             recoveryStrategy: "status_check_first",
+             error: "Conexão interrompida antes da resposta. Resultado da submissão é incerto." 
+           };
         }
         return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "NETWORK_ERROR", error: networkErr.message };
       } finally {
@@ -152,6 +159,17 @@ export class FocusNFeProvider implements FiscalProvider {
 
       const data = await response.json().catch(() => ({}));
       
+      if (response.status === 404) {
+        return { 
+          success: false, 
+          canonicalStatus: "error",
+          isRetryableError: false,
+          errorCode: "REFERENCE_NOT_FOUND",
+          error: "Documento/Referência inexistente na Focus", 
+          rawResponse: { http_status: 404 } 
+        };
+      }
+
       const classification = classifyFocusResult(response.status, data);
 
       if (classification.canonicalStatus === "error" || classification.canonicalStatus === "rejected") {

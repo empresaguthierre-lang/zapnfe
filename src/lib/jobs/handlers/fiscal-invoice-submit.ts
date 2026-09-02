@@ -46,6 +46,23 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
   // 5. Normalization & State Update
   if (!result.success) {
     if (result.canonicalStatus === "error") {
+      if (result.errorCode === "FOCUS_SUBMISSION_OUTCOME_UNKNOWN" && result.recoveryStrategy === "status_check_first") {
+        // Enqueue recover job instead of retrying submit
+        await supabaseAdmin.from("outbox_jobs").insert({
+          organization_id: invoice.organization_id,
+          job_type: "fiscal.invoice.recover_submission",
+          entity_type: "invoices",
+          entity_id: invoiceId,
+          payload: {}
+        });
+        
+        return { 
+          success: false, 
+          retryable: false, 
+          error: "Submissão incerta (Timeout). Delegado para recovery (status_check_first)."
+        };
+      }
+
       return { 
         success: false, 
         retryable: result.isRetryableError ?? false, 
