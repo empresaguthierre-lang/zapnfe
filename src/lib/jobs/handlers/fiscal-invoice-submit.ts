@@ -15,8 +15,16 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
   }
 
   // 2. Load Provider Account
-  const providerCode = process.env.FOCUS_NFE_API_TOKEN ? "focus_nfe" : "test_mock"; 
-  const environment = "homologation";
+  const { data: providerConfig, error: providerErr } = await supabaseAdmin
+    .from("fiscal_provider_accounts")
+    .select("*")
+    .eq("organization_id", invoice.organization_id)
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+
+  const providerCode = providerConfig?.provider || "test_mock";
+  const environment = providerConfig?.environment || "homologation";
 
   // 3. Factory execution
   let provider;
@@ -31,8 +39,8 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
   const result = await provider.issueInvoice({
     invoiceId: invoice.id,
     payload: invoice, // The provider's transformer will map this snapshot
-    environment: environment,
-    credentials: { latencyMs: 0 }
+    environment: environment as any,
+    credentials: providerConfig?.credentials || { latencyMs: 0 }
   });
 
   // 5. Normalization & State Update

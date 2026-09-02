@@ -19,8 +19,16 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
   }
 
   // 2. Load Provider Account
-  const providerCode = process.env.FOCUS_NFE_API_TOKEN ? "focus_nfe" : "test_mock"; 
-  const environment = "homologation";
+  const { data: providerConfig, error: providerErr } = await supabaseAdmin
+    .from("fiscal_provider_accounts")
+    .select("*")
+    .eq("organization_id", invoice.organization_id)
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+
+  const providerCode = providerConfig?.provider || "test_mock";
+  const environment = providerConfig?.environment || "homologation";
 
   let provider;
   try {
@@ -33,8 +41,8 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
   const result = await provider.getInvoiceStatus({
     invoiceId: invoice.id,
     providerReference: invoice.provider_reference || "test_ref",
-    environment: environment,
-    credentials: { latencyMs: 0 }
+    environment: environment as any,
+    credentials: providerConfig?.credentials || { latencyMs: 0 }
   });
 
   if (!result.success && result.canonicalStatus !== 'rejected') {

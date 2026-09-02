@@ -17,9 +17,8 @@ export class FocusNFeProvider implements FiscalProvider {
       : "https://homologacao.focusnfe.com.br";
   }
 
-  private getAuthHeader(): Record<string, string> {
-    const token = process.env.FOCUS_NFE_API_TOKEN;
-    if (!token) throw new Error("Missing FOCUS_NFE_API_TOKEN in environment");
+  private getAuthHeader(token: string): Record<string, string> {
+    if (!token) throw new Error("Missing Focus NFe API Token");
     // HTTP Basic Auth: username = token, password = empty
     return {
       "Authorization": `Basic ${Buffer.from(token + ":").toString("base64")}`,
@@ -48,11 +47,13 @@ export class FocusNFeProvider implements FiscalProvider {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
+      const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
+
       let response;
       try {
         response = await fetch(`${baseUrl}/v2/nfe?ref=${referenceId}`, {
           method: "POST",
-          headers: this.getAuthHeader(),
+          headers: this.getAuthHeader(token),
           body: JSON.stringify(focusPayload),
           signal: controller.signal
         });
@@ -73,7 +74,7 @@ export class FocusNFeProvider implements FiscalProvider {
         return {
           success: false,
           canonicalStatus: "error", // Outbox worker should retry on 5xx, or fail on 4xx depending on error
-          error: data.mensagem || "Erro de validação Focus NFe",
+          error: data.mensagem || "Erro de validaÃ§Ã£o Focus NFe",
           rawResponse: { http_status: response.status, provider_error_code: data.codigo, provider_message: data.mensagem }
         };
       }
@@ -101,11 +102,13 @@ export class FocusNFeProvider implements FiscalProvider {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
+      const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
+
       let response;
       try {
         response = await fetch(`${baseUrl}/v2/nfe/${referenceId}`, {
           method: "GET",
-          headers: this.getAuthHeader(),
+          headers: this.getAuthHeader(token),
           signal: controller.signal
         });
       } catch (networkErr: any) {
@@ -169,4 +172,5 @@ export class FocusNFeProvider implements FiscalProvider {
     return { online: true, message: "Ping ok" };
   }
 }
+
 

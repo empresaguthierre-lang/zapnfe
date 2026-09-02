@@ -163,11 +163,11 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
           </div>
           <div>
             <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Provider</span>
-            <strong>Focus NFe {process.env.FOCUS_NFE_API_TOKEN ? "(Real)" : "(Mock)"}</strong>
+            <strong style={{ textTransform: "uppercase" }}>{invoice.provider || "test_mock"}</strong>
           </div>
           <div>
             <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ambiente</span>
-            <strong>Homologação</strong>
+            <strong style={{ textTransform: "capitalize" }}>{invoice.environment || "Homologação"}</strong>
           </div>
           <div>
             <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Referência</span>
