@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FiShield } from "react-icons/fi";
 import { LoginForm } from "@/components/login-form";
@@ -14,7 +14,7 @@ export default async function LoginPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <Link className="auth-brand" href="/"><span className="brand-mark">Z</span><strong>ZapNFe</strong></Link>
+        <Link className="auth-brand" href="/"><span className="brand-mark">Z</span><strong>Bridge ERP</strong></Link>
         <div className="auth-heading"><span><FiShield /></span><div><p className="eyebrow">Acesso protegido</p><h1>Entrar na operação</h1></div></div>
         <p className="auth-description">Use uma conta vinculada a uma empresa. Permissões e dados são validados novamente no servidor.</p>
         <LoginForm />

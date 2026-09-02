@@ -1,15 +1,17 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { requireOrganizationMember } from "@/lib/auth/authorization";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/data/format";
-import { FiArrowLeft, FiAlertCircle } from "react-icons/fi";
+import { formatCurrency, formatDateTime } from "@/lib/data/format";
+import { FiArrowLeft, FiAlertCircle, FiLock, FiUnlock } from "react-icons/fi";
+import { CustomerTabs } from "./tabs";
 
 export const dynamic = "force-dynamic";
 
-export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
+  const { tab = "visao-geral" } = await searchParams;
   const member = await requireOrganizationMember();
   const supabase = await createClient();
 
@@ -27,6 +29,13 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     .select("*")
     .eq("customer_id", id)
     .single();
+    
+  const { data: restrictions } = await supabase
+    .from("customer_restrictions")
+    .select("*, created_by_user:created_by(email)")
+    .eq("customer_id", id)
+    .is("released_at", null)
+    .order("created_at", { ascending: false });
 
   let riskLevel = "🟢 Regular";
   let riskColor = "var(--success)";
@@ -48,6 +57,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       if (metrics.overdue_amount > 0) riskFactors.push(`${formatCurrency(metrics.overdue_amount)} atualmente vencidos.`);
     }
   }
+  
+  const blocks = restrictions?.filter(r => r.severity === 'block') || [];
 
   return (
     <AppShell active="customers" eyebrow="Clientes" title={customer.name}>
@@ -56,17 +67,23 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <FiArrowLeft /> Voltar
         </Link>
       </div>
-
-      <div style={{ borderBottom: "1px solid var(--border)", marginBottom: 24 }}>
-        <div style={{ display: "flex", gap: 24, fontWeight: 500 }}>
-          <div style={{ padding: "8px 0", borderBottom: "2px solid var(--primary)", color: "var(--primary)" }}>Financeiro</div>
+      
+      {blocks.length > 0 && (
+        <div style={{ marginBottom: 24, padding: "16px", borderRadius: "12px", background: "#fef2f2", border: "1px solid #fecaca", display: "flex", gap: "12px", color: "#991b1b" }}>
+           <FiLock size={24} style={{ flexShrink: 0, marginTop: 4 }} />
+           <div>
+             <strong style={{ fontSize: "14px", display: "block" }}>{blocks.length} bloqueio(s) ativo(s)</strong>
+             <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>{blocks[0].module.toUpperCase()}: {blocks[0].reason}</p>
+           </div>
         </div>
-      </div>
+      )}
 
-      {metrics ? (
+      <CustomerTabs activeTab={tab} customerId={id} restrictionsCount={blocks.length} />
+
+      {tab === "financeiro" && metrics && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
           <div>
-            <div className="panel" style={{ marginBottom: 24 }}>
+            <div className="panel" style={{ marginBottom: 24, padding: 20 }}>
               <h4>Situação Atual</h4>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Valor a Receber (Em Aberto)</span>
@@ -78,7 +95,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               </div>
             </div>
 
-            <div className="panel">
+            <div className="panel" style={{ padding: 20 }}>
               <h4>Histórico de Pagamentos</h4>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Parcelas Pagas no Prazo</span>
@@ -96,7 +113,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           </div>
 
           <div>
-            <div className="panel" style={{ border: `1px solid ${riskColor}` }}>
+            <div className="panel" style={{ border: `1px solid ${riskColor}`, padding: 20 }}>
               <h4 style={{ color: riskColor }}>Risco Financeiro: {riskLevel}</h4>
 
               {riskFactors.length > 0 ? (
@@ -111,11 +128,67 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             </div>
           </div>
         </div>
-      ) : (
-        <div className="panel" style={{ textAlign: "center", padding: 48, color: "var(--text-secondary)" }}>
-          <FiAlertCircle size={32} style={{ opacity: 0.5, marginBottom: 16 }} />
-          <p>Nenhuma métrica financeira gerada para este cliente ainda.</p>
+      )}
+
+      {tab === "restricoes" && (
+        <div className="panel data-panel">
+          <div className="data-table">
+            <div className="data-row data-header" style={{ gridTemplateColumns: "1fr 2fr 1fr 1fr" }}>
+              <span>Status</span><span>Restrição</span><span>Severidade</span><span style={{ textAlign: "right" }}>Ação</span>
+            </div>
+            
+            {!restrictions || restrictions.length === 0 ? (
+              <div className="data-row" style={{ display: "block", textAlign: "center", padding: "40px", color: "var(--text-secondary)" }}>
+                Nenhuma restrição ativa. Cliente totalmente liberado.
+              </div>
+            ) : (
+              restrictions.map(r => (
+                <div key={r.id} className="data-row" style={{ gridTemplateColumns: "1fr 2fr 1fr 1fr" }}>
+                  <div>
+                    <span style={{ color: r.severity === 'block' ? "var(--danger)" : "var(--warning)", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                      {r.severity === 'block' ? <FiLock /> : <FiAlertCircle />} {r.severity.toUpperCase()}
+                    </span>
+                    <small style={{ color: "var(--text-secondary)", display: "block", marginTop: 4 }}>Desde {formatDateTime(r.created_at)}</small>
+                  </div>
+                  <div>
+                    <strong>Módulo: {r.module.toUpperCase()} — {r.restriction_type}</strong>
+                    <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>{r.reason}</p>
+                    <small style={{ color: "var(--text-secondary)", display: "block", marginTop: 4 }}>Escopo: {r.scope}</small>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "12px" }}>Resp: {(r as any).created_by_user?.email || "Sistema"}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <form action={async () => {
+                      "use server";
+                      const { createClient } = await import("@/lib/supabase/server");
+                      const db = await createClient();
+                      await db.rpc("customer_release_restriction", { p_org_id: member.organizationId, p_restriction_id: r.id, p_reason: "Desbloqueio manual" });
+                      const { revalidatePath } = await import("next/cache");
+                      revalidatePath(`/clientes/${id}`);
+                    }}>
+                      <button type="submit" className="secondary-button" style={{ fontSize: "12px", padding: "6px 12px", minHeight: "auto" }}>
+                        <FiUnlock /> Desbloquear
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+      )}
+      
+      {tab === "visao-geral" && (
+         <div className="panel" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+           Resumo do cliente em construção.
+         </div>
+      )}
+      
+      {tab === "fiscal" && (
+         <div className="panel" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+           Perfil fiscal em construção. (Bloco 4A.2)
+         </div>
       )}
     </AppShell>
   );

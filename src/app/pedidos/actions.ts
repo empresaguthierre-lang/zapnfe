@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -28,15 +28,15 @@ const reviewSchema = z.object({
 export type ReviewActionResult = { ok: true; status: "review" | "approved"; updatedAt: string; stockStatus?: string } | { ok: false; message: string; isInsufficientStock?: boolean; missingProductId?: string };
 
 function reviewErrorMessage(message: string): { message: string; isInsufficientStock?: boolean; missingProductId?: string } {
-  if (message.includes("ORDER_CONFLICT")) return { message: "Este pedido foi alterado por outra pessoa. Atualize a página antes de continuar." };
-  if (message.includes("ORDER_LOCKED")) return { message: "Este pedido já foi aprovado ou encerrado e não pode mais ser alterado." };
-  if (message.includes("ORDER_ACCESS_DENIED") || message.includes("ORDER_NOT_FOUND")) return { message: "Pedido não encontrado para esta empresa." };
-  if (message.includes("REVIEW_INCOMPLETE")) return { message: "Confirme todos os produtos antes de aprovar o pedido." };
-  if (message.includes("INSUFFICIENT_STOCK:")) {
+  if (message === "ORDER_CONFLICT") return { message: "Este pedido foi alterado por outra pessoa. Atualize a página antes de continuar." };
+  if (message === "ORDER_LOCKED") return { message: "Este pedido já foi aprovado ou encerrado e não pode mais ser alterado." };
+  if (message === "ORDER_ACCESS_DENIED" || message === "ORDER_NOT_FOUND") return { message: "Pedido não encontrado para esta empresa." };
+  if (message === "REVIEW_INCOMPLETE") return { message: "Confirme todos os produtos antes de aprovar o pedido." };
+  if (message.startsWith("INSUFFICIENT_STOCK:")) {
     const productName = message.split("INSUFFICIENT_STOCK:")[1].trim();
     return { message: `⚠️ Estoque insuficiente para concluir a reserva. Em falta: ${productName}`, isInsufficientStock: true };
   }
-  if (message.includes("NO_ACTIVE_WAREHOUSE")) return { message: "Nenhum depósito ativo encontrado para a organização." };
+  if (message === "NO_ACTIVE_WAREHOUSE") return { message: "Nenhum depósito ativo encontrado para a organização." };
   return { message: "Não foi possível salvar a conferência. Revise os dados e tente novamente." };
 }
 
@@ -240,4 +240,54 @@ export async function generateFinanceFromOrderAction(orderId: string) {
   revalidatePath(`/pedidos/${orderId}`);
 
   return { ok: true, receivableId: data };
+}
+
+// NOTE: issueInvoiceAction was removed during audit (M5).
+// The real invoice creation flow uses prepareInvoiceDraftAction below,
+// which calls fiscal_create_invoice_draft_from_order (with built-in assert).
+
+export async function prepareInvoiceDraftAction(orderId: string) {
+  const member = await requireOrganizationRole(["admin", "manager"]);
+  const parsedOrderId = z.string().uuid().safeParse(orderId);
+  if (!parsedOrderId.success) return { ok: false, message: "Pedido inválido." };
+  
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fiscal_create_invoice_draft_from_order", {
+    p_order_id: parsedOrderId.data
+  });
+  
+  if (error) {
+    if (error.message.includes("UNAUTHORIZED")) return { ok: false, message: "Acesso negado." };
+    if (error.message.includes("CUSTOMER_OPERATION_BLOCKED")) return { ok: false, message: "Cliente possui restrição bloqueante." };
+    if (error.message.includes("FISCAL_READINESS_FAILED")) return { ok: false, message: "Pedido não está fiscalmente pronto." };
+    return { ok: false, message: "Erro interno ao preparar NF-e." };
+  }
+  
+  revalidatePath(`/pedidos/${orderId}`);
+  return { ok: true, invoiceId: data };
+}
+
+export async function submitInvoiceAction(invoiceId: string, orderId: string) {
+  const member = await requireOrganizationRole(["admin", "manager"]);
+  const parsedInvoiceId = z.string().uuid().safeParse(invoiceId);
+  
+  if (!parsedInvoiceId.success) return { ok: false, message: "Fatura inválida." };
+
+  const supabase = await createClient();
+  
+  // Call the official Outbox queuing RPC
+  const { error } = await supabase.rpc("fiscal_queue_invoice_submission", {
+    p_invoice_id: parsedInvoiceId.data
+  });
+
+  if (error) {
+    if (error.message.includes("UNAUTHORIZED")) return { ok: false, message: "Acesso negado." };
+    if (error.message.includes("INVALID_STATUS")) return { ok: false, message: "O documento não está em estado de Draft." };
+    if (error.message.includes("CUSTOMER_OPERATION_BLOCKED")) return { ok: false, message: "Cliente com restrição impeditiva." };
+    return { ok: false, message: "Falha ao enfileirar transmissão fiscal." };
+  }
+  
+  revalidatePath(`/pedidos/${orderId}`);
+  revalidatePath(`/fiscal/notas/${invoiceId}`);
+  return { ok: true };
 }

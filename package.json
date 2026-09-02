@@ -1,9 +1,10 @@
 {
-  "name": "zapnfe",
+  "name": "bridge-erp",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "worker": "tsx src/lib/jobs/runner.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -17,6 +18,7 @@
     "@google/genai": "^2.18.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
+    "dotenv": "^17.4.2",
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -32,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

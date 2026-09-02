@@ -1,8 +1,8 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export function LegalPage({ title, updatedAt, children }: { title: string; updatedAt: string; children: React.ReactNode }) {
   return <main style={{ maxWidth: 860, margin: "0 auto", padding: "48px 24px 80px", lineHeight: 1.7 }}>
-    <Link href="/" style={{ color: "#2a9d8f", fontWeight: 700 }}>← ZapNFe</Link>
+    <Link href="/" style={{ color: "#2a9d8f", fontWeight: 700 }}>← Bridge ERP</Link>
     <h1 style={{ color: "#1d3557", marginTop: 32 }}>{title}</h1>
     <p style={{ color: "#68778b" }}>Última atualização: {updatedAt}</p>
     <div>{children}</div>

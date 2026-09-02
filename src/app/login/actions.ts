@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -30,7 +30,7 @@ export async function loginAction(_state: LoginState, formData: FormData): Promi
 
   if (membershipError || !membership) {
     await supabase.auth.signOut();
-    return { error: "Esta conta ainda não possui acesso a uma empresa do ZapNFe." };
+    return { error: "Esta conta ainda não possui acesso a uma empresa do Bridge ERP." };
   }
 
   redirect("/pedidos");
