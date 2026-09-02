@@ -38,7 +38,8 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
     .from("outbox_jobs")
     .select("*")
     .eq("entity_id", id)
-    .in("status", ["pending", "processing"])
+    .in("status", ["pending", "processing", "failed"])
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -149,6 +150,55 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
           </div>
         </div>
       </div>
+
+      {invoice.status === "submission_pending" && outboxJob && outboxJob.status === "failed" && (
+        <div style={{ marginBottom: 24, padding: "16px", borderRadius: "12px", background: "#fef2f2", border: "1px solid #fca5a5", display: "flex", gap: "12px", color: "#991b1b" }}>
+          <FiInfo size={24} style={{ flexShrink: 0, marginTop: 4 }} />
+          <div>
+            {(() => {
+               const err = outboxJob.error || "";
+               if (err.includes("PROVIDER_AUTHENTICATION_ERROR") || err.includes("PROVIDER_PERMISSION_ERROR")) {
+                 return (
+                   <>
+                     <strong style={{ fontSize: "14px", display: "block" }}>🔴 Falha na configuração do provedor</strong>
+                     <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Não foi possível autenticar a empresa na Focus NFe. A NF-e NÃO foi rejeitada pela SEFAZ.</p>
+                   </>
+                 );
+               }
+               if (err.includes("PROVIDER_VALIDATION_ERROR") || err.includes("PROVIDER_PROTOCOL_ERROR")) {
+                 return (
+                   <>
+                     <strong style={{ fontSize: "14px", display: "block" }}>🔴 Dados recusados pelo provedor</strong>
+                     <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>A NF-e não chegou à etapa de autorização.</p>
+                     <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Mensagem: {err}</p>
+                   </>
+                 );
+               }
+               return (
+                 <>
+                   <strong style={{ fontSize: "14px", display: "block" }}>🔴 Erro Técnico</strong>
+                   <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Ocorreu uma falha técnica. Mensagem: {err}</p>
+                 </>
+               );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {invoice.status === "rejected" && events && (
+        <div style={{ marginBottom: 24, padding: "16px", borderRadius: "12px", background: "#fef2f2", border: "1px solid #fca5a5", display: "flex", gap: "12px", color: "#991b1b" }}>
+          <FiInfo size={24} style={{ flexShrink: 0, marginTop: 4 }} />
+          <div>
+            <strong style={{ fontSize: "14px", display: "block" }}>⛔ NF-e rejeitada</strong>
+            <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>SEFAZ rejeitou a autorização.</p>
+            {events.slice().reverse().find(e => e.event_type === "rejected")?.provider_response && (
+              <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>
+                Motivo: {events.slice().reverse().find(e => e.event_type === "rejected")?.provider_response?.provider_message || "Rejeição Sefaz"}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="panel" style={{ padding: 24, marginBottom: 24, border: "2px solid #e2e8f0" }}>
         <h4 style={{ margin: "0 0 16px 0", fontSize: 13, textTransform: "uppercase", color: "var(--ink)", letterSpacing: "0.5px", display: "flex", justifyContent: "space-between" }}>
