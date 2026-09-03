@@ -63,31 +63,24 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
   }
 
   // Final Status Updates
-  const { error: updateErr } = await supabaseAdmin
-    .from("invoices")
-    .update({ 
-      status: result.canonicalStatus,
-      provider_access_key: result.accessKey,
-      provider_authorization_protocol: result.authorizationProtocol
-    })
-    .eq("id", invoiceId)
-    .eq("status", "processing"); // optimistic concurrency
-
-  if (updateErr) {
-    return { success: false, retryable: true, backoffMinutes: 1, error: "Concurrency mismatch updating invoice status" };
-  }
-
-  // Record History Event
-  await supabaseAdmin
-    .from("invoice_events")
-    .insert({
-      organization_id: invoice.organization_id,
-      invoice_id: invoiceId,
-      event_type: result.canonicalStatus === "authorized" ? "authorized" : "rejected",
-      description: `Retorno final: ${result.providerStatus} ${result.authorizationProtocol ? `Prot: ${result.authorizationProtocol}` : ""}`,
-      provider_response: result.rawResponse,
-      created_by: null
+  if (result.canonicalStatus === "authorized") {
+    const { error: authErr } = await supabaseAdmin.rpc("fiscal_record_authorization", {
+      p_invoice_id: invoiceId,
+      p_provider_reference: invoice.provider_reference,
+      p_access_key: result.accessKey,
+      p_authorization_protocol: result.authorizationProtocol,
+      p_authorized_at: result.authorizedAt,
+      p_raw_response: result.rawResponse
     });
+    if (authErr) return { success: false, retryable: true, backoffMinutes: 1, error: "Failed to record authorization: " + authErr.message };
+  } else if (result.canonicalStatus === "error" || result.canonicalStatus === "rejected") {
+    await supabaseAdmin.rpc("fiscal_record_submission_failure", {
+      p_invoice_id: invoiceId,
+      p_error_code: result.errorCode,
+      p_error_message: `[${result.errorCode}] ${result.error}`,
+      p_raw_response: result.rawResponse || {}
+    });
+  }
 
   return { success: true };
 }

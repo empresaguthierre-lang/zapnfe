@@ -49,8 +49,8 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
     await supabaseAdmin.from("invoice_events").insert({
       organization_id: invoice.organization_id,
       invoice_id: invoiceId,
-      event_type: "processing",
-      description: `Iniciando submissão para provedor com ref ${referenceId}`
+      event_type: "submission_started",
+      description: `Iniciando submissao para provedor com ref ${referenceId}`
     });
   }
 
@@ -86,7 +86,6 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
 
       // Update the invoice to error and generate the event
       await supabaseAdmin.rpc("fiscal_record_submission_failure", {
-        p_org_id: invoice.organization_id,
         p_invoice_id: invoiceId,
         p_error_code: result.errorCode,
         p_error_message: `[${result.errorCode}] ${result.error}`,
@@ -102,32 +101,43 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
     }
   }
   
-  // 7. Update Database using Service Role directly
-  const { error: updateErr } = await supabaseAdmin
-    .from("invoices")
-    .update({ 
-      status: result.canonicalStatus,
-      provider_reference: result.providerReference 
-    })
-    .eq("id", invoiceId)
-    // we could check status, but we now start from submission_started
-    .eq("status", "submission_started"); 
-
-  if (updateErr) {
-    return { success: false, retryable: true, backoffMinutes: 1, error: "Concurrency mismatch updating invoice status" };
-  }
-
-  // 8. Record History Event
-  await supabaseAdmin
-    .from("invoice_events")
-    .insert({
-      organization_id: invoice.organization_id,
-      invoice_id: invoiceId,
-      event_type: result.canonicalStatus === "authorized" ? "authorized" : (result.canonicalStatus === "rejected" ? "rejected" : "processing"),
-      description: `Retorno do provedor: ${result.providerStatus}`,
-      provider_response: result.rawResponse,
-      created_by: null // System actor
+  // 7. Record History and Mutate State
+  if (result.canonicalStatus === "authorized") {
+    const { error: authErr } = await supabaseAdmin.rpc("fiscal_record_authorization", {
+      p_invoice_id: invoiceId,
+      p_provider_reference: result.providerReference,
+      p_access_key: result.accessKey,
+      p_authorization_protocol: result.authorizationProtocol,
+      p_authorized_at: result.authorizedAt,
+      p_raw_response: result.rawResponse
     });
+    if (authErr) return { success: false, retryable: true, backoffMinutes: 1, error: "Failed to record authorization: " + authErr.message };
+  } else {
+    // For processing/rejected
+    const { error: updateErr } = await supabaseAdmin
+      .from("invoices")
+      .update({ 
+        status: result.canonicalStatus,
+        provider_reference: result.providerReference 
+      })
+      .eq("id", invoiceId)
+      .eq("status", "submission_started"); 
+
+    if (updateErr) {
+      return { success: false, retryable: true, backoffMinutes: 1, error: "Concurrency mismatch updating invoice status" };
+    }
+
+    await supabaseAdmin
+      .from("invoice_events")
+      .insert({
+        organization_id: invoice.organization_id,
+        invoice_id: invoiceId,
+        event_type: result.canonicalStatus === "rejected" ? "rejected" : "processing",
+        description: `Retorno do provedor: ${result.providerStatus}`,
+        provider_response: result.rawResponse,
+        created_by: null // System actor
+      });
+  }
 
   // 9. Enqueue Polling Job if still processing
   if (result.canonicalStatus === "processing") {
@@ -149,3 +159,9 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
 
   return { success: true };
 }
+
+
+
+
+
+

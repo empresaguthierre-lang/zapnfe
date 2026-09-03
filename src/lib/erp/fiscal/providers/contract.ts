@@ -36,6 +36,9 @@ export type IssueInvoiceResult = {
   canonicalStatus: CanonicalInvoiceStatus;
   providerStatus?: string;
   providerReference?: string;
+  accessKey?: string;
+  authorizationProtocol?: string;
+  authorizedAt?: string;
   rawResponse?: any;
   error?: string;
   errorCode?: string;

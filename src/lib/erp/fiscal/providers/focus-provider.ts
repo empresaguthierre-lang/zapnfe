@@ -127,8 +127,11 @@ export class FocusNFeProvider implements FiscalProvider {
         success: true,
         canonicalStatus: classification.canonicalStatus,
         providerStatus: data.status,
-        providerReference: referenceId, 
-        rawResponse: { http_status: response.status, provider_status: data.status }
+        providerReference: referenceId,
+        accessKey: data.chave_nfe,
+        authorizationProtocol: data.protocolo,
+        authorizedAt: data.data_autorizacao,
+        rawResponse: { http_status: response.status, provider_status: data.status, ...data }
       };
 
     } catch (err: any) {
@@ -151,7 +154,7 @@ export class FocusNFeProvider implements FiscalProvider {
 
       let response;
       try {
-        response = await fetch(`${baseUrl}/v2/nfe/${referenceId}`, {
+        response = await fetch(`${baseUrl}/v2/nfe/${referenceId}?completa=1`, {
           method: "GET",
           headers: this.getAuthHeader(token),
           signal: controller.signal
