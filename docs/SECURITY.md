@@ -52,3 +52,14 @@ A correção de erros ocorre por: _reversal_, _cancellation_, _compensating even
 Tokens, senhas, chaves de API e certificados **jamais** ficam em texto puro.
 Devem usar `credentials_reference` apontando para um Vault seguro ou estarem cifrados no Postgres.
 Nunca expor em variáveis `NEXT_PUBLIC_*`.
+## Database Privileges
+- Direct DML (INSERT, UPDATE, DELETE) is explicitly revoked for all authenticated and anon users on sensitive ledger tables (e.g. eceivable_payments, ank_transactions, invoices). Mutations happen exclusively via SECURITY DEFINER RPCs.
+
+## Security Definer & Tenancy
+- All SECURITY DEFINER functions MUST explicitly reset the search path via SET search_path = ''.
+- Functions must extract the root entity first and derive the organization_id for authorization, never blindly trusting a client-provided parameter.
+- Errors regarding access should prefer NOT_FOUND over UNAUTHORIZED when accessing cross-tenant entities to prevent enumeration.
+
+## Cross-Site Scripting (XSS)
+- Do NOT output absolute URLs directly from the database to the client. The database should return ction_code tokens, which the frontend routes safely internally (e.g. EDIT_PRODUCT_FISCAL).
+- Any dynamic routing must run through safeInternalHref() utility to filter javascript: and protocol-relative // domains.
