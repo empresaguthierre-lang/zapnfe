@@ -1,6 +1,25 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 "use client";
+function getActionUrl(code: string, entityId?: string): string {
+  switch (code) {
+    case 'CONFIGURE_FISCAL': return '/fiscal/configuracoes';
+    case 'VIEW_CUSTOMER_RESTRICTIONS': return '/clientes/' + entityId + '?tab=restricoes';
+    case 'CONFIGURE_CUSTOMER_FISCAL': return '/clientes/' + entityId + '?tab=fiscal';
+    case 'CONFIGURE_PRODUCT_FISCAL': return '/produtos/' + entityId + '?tab=fiscal';
+    default: return '#';
+  }
+}
+
+function getActionLabel(code: string): string {
+  switch (code) {
+    case 'CONFIGURE_FISCAL': return 'Configurar Fiscal';
+    case 'VIEW_CUSTOMER_RESTRICTIONS': return 'Ver restrições';
+    case 'CONFIGURE_CUSTOMER_FISCAL': return 'Configurar Cliente';
+    case 'CONFIGURE_PRODUCT_FISCAL': return 'Configurar Produto';
+    default: return 'Resolver';
+  }
+}
 
 import Link from "next/link";
 import { useTransition } from "react";
@@ -17,7 +36,7 @@ type Issue = {
   entity_id?: string;
   order_item_id?: string;
   message: string;
-  action?: { label: string; href: string };
+  action_code?: string;
 };
 
 type Diagnosis = {
@@ -44,9 +63,9 @@ export function FiscalReadinessPanel({ diagnosis, customerName, products, orderI
             <div>
               {issue.order_item_id && <strong style={{ display: "block", color: "var(--ink)", fontSize: 13 }}>{products.find(p => p.id === issue.order_item_id)?.name || "Item desconhecido"}</strong>}
               <p style={{ margin: "0 0 6px 0", fontSize: 13 }}>{issue.message}</p>
-              {issue.action && (
-                <Link href={safeInternalHref(issue.action.href)} className="secondary-button" style={{ padding: "4px 10px", fontSize: 11, minHeight: 0 }}>
-                  {issue.action.label}
+              {issue.action_code && (
+                <Link href={safeInternalHref(getActionUrl(issue.action_code, issue.entity_id))} className="secondary-button" style={{ padding: "4px 10px", fontSize: 11, minHeight: 0 }}>
+                  {getActionLabel(issue.action_code)}
                 </Link>
               )}
             </div>

@@ -24,7 +24,7 @@ jobs:
         run: |
           mkdir -p "${{ github.workspace }}/zap-reports"
           chmod 0777 "${{ github.workspace }}/zap-reports"
-      - name: Run ZAP Baseline
+      - name: Run ZAP Baseline (Public)
         env:
           TARGET_URL: ${{ github.event.deployment_status.environment_url }}
         run: |
@@ -33,6 +33,15 @@ jobs:
             --network host \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t "$TARGET_URL" -T 5 -r zap-report.html -J zap-report.json || true
+      - name: Run ZAP Baseline (Authenticated)
+        env:
+          TARGET_URL: ${{ github.event.deployment_status.environment_url }}
+          # DAST runs with isolated test users only, never service_role
+          TEST_USER: "security-test-admin@example.invalid"
+          TEST_PASS: ${{ secrets.DAST_TEST_USER_PASSWORD }}
+        run: |
+          echo "Authenticated DAST step (placeholder for context-based ZAP auth)"
+          # docker run --rm ... zap-baseline.py -t "$TARGET_URL" -U security-test-admin ...
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -41,4 +50,3 @@ jobs:
             zap-reports/zap-report.html
             zap-reports/zap-report.json
           if-no-files-found: ignore
-

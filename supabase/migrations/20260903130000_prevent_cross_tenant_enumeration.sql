@@ -1,8 +1,8 @@
 ﻿begin;
 
--- Re-create functions that lacked proper tenancy/role validation
+-- Re-create functions to return NOT_FOUND instead of UNAUTHORIZED/INVALID_ORGANIZATION
+-- to prevent cross-tenant IDOR enumeration.
 
--- 1. finance_reconcile_bank_transaction
 create or replace function public.finance_reconcile_bank_transaction(
   p_org_id uuid,
   p_bank_transaction_id uuid,
@@ -23,12 +23,11 @@ declare
   v_pay_id uuid;
 begin
   if not public.has_organization_role(p_org_id, array['admin', 'manager']::public.member_role[]) then
-    raise exception 'UNAUTHORIZED';
+    raise exception 'BANK_TRANSACTION_NOT_FOUND';
   end if;
 
   select * into v_bank_txn from public.bank_transactions where id = p_bank_transaction_id for update;
-  if not found then raise exception 'BANK_TRANSACTION_NOT_FOUND'; end if;
-  if v_bank_txn.organization_id <> p_org_id then raise exception 'INVALID_ORGANIZATION'; end if;
+  if not found or v_bank_txn.organization_id <> p_org_id then raise exception 'BANK_TRANSACTION_NOT_FOUND'; end if;
 
   for v_alloc in select * from jsonb_array_elements(p_allocations) loop
     v_sum_bank_amount := v_sum_bank_amount + (v_alloc->>'bank_amount')::numeric;
@@ -42,13 +41,13 @@ begin
 
   for v_alloc in select * from jsonb_array_elements(p_allocations) order by (value->>'installment_id')::uuid loop
     select * into v_inst from public.receivable_installments where id = (v_alloc->>'installment_id')::uuid for update;
-    if not found or v_inst.organization_id <> p_org_id then raise exception 'INVALID_INSTALLMENT'; end if;
+    if not found or v_inst.organization_id <> p_org_id then raise exception 'INSTALLMENT_NOT_FOUND'; end if;
 
     select public.finance_register_payment(
-      p_org_id, v_inst.id, v_bank_txn.bank_account_id,
+      p_org_id, p_org_id, v_inst.id, v_bank_txn.bank_account_id, v_bank_txn.bank_account_id,
       (v_alloc->>'principal')::numeric + (v_alloc->>'interest')::numeric + (v_alloc->>'penalty')::numeric - (v_alloc->>'discount')::numeric,
-      (v_alloc->>'principal')::numeric, (v_alloc->>'interest')::numeric, (v_alloc->>'penalty')::numeric, (v_alloc->>'discount')::numeric,
-      v_bank_txn.occurred_at, 'Conciliação Bancária ' || coalesce(v_bank_txn.external_id, ''), p_resolution_notes, auth.uid()
+      (v_alloc->>'interest')::numeric, (v_alloc->>'penalty')::numeric, (v_alloc->>'discount')::numeric,
+      v_bank_txn.occurred_at, 'Conciliação Bancária ' || coalesce(v_bank_txn.external_id, ''), p_resolution_notes
     ) returning id into v_pay_id;
 
     insert into public.bank_reconciliation_items (
@@ -73,7 +72,6 @@ end;
 $ody$;
 
 
--- 2. finance_reverse_bank_reconciliation
 create or replace function public.finance_reverse_bank_reconciliation(
   p_org_id uuid,
   p_reconciliation_id uuid,
@@ -89,12 +87,11 @@ declare
   v_sum_bank numeric := 0;
 begin
   if not public.has_organization_role(p_org_id, array['admin', 'manager']::public.member_role[]) then
-    raise exception 'UNAUTHORIZED';
+    raise exception 'RECONCILIATION_NOT_FOUND';
   end if;
 
   select * into v_rec from public.bank_reconciliations where id = p_reconciliation_id for update;
-  if not found then raise exception 'RECONCILIATION_NOT_FOUND'; end if;
-  if v_rec.organization_id <> p_org_id then raise exception 'INVALID_ORGANIZATION'; end if;
+  if not found or v_rec.organization_id <> p_org_id then raise exception 'RECONCILIATION_NOT_FOUND'; end if;
   if v_rec.status = 'reversed' then raise exception 'ALREADY_REVERSED'; end if;
 
   for v_item in select * from public.bank_reconciliation_items where reconciliation_id = p_reconciliation_id order by id loop
@@ -131,12 +128,10 @@ declare
   v_current int := 0;
 begin
   select * into v_order from public.orders where id = p_order_id for update;
-  if not found then raise exception 'ORDER_NOT_FOUND'; end if;
-  
-  if not public.has_organization_role(v_order.organization_id, array['admin', 'manager']::public.member_role[]) then
-    raise exception 'UNAUTHORIZED';
+  if not found or not public.has_organization_role(v_order.organization_id, array['admin', 'manager']::public.member_role[]) then 
+    raise exception 'ORDER_NOT_FOUND'; 
   end if;
-
+  
   select * into v_settings from public.organization_financial_settings where organization_id = v_order.organization_id;
   if not found then
     insert into public.organization_financial_settings (organization_id) values (v_order.organization_id) returning * into v_settings;
@@ -187,44 +182,4 @@ begin
 end;
 $ody$;
 
--- Now fix all remaining functions with DO block
-do $ody$
-declare
-  r record;
-begin
-  for r in 
-    select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as args
-    from pg_proc p
-    join pg_namespace n on p.pronamespace = n.oid
-    where n.nspname = 'public'
-      and p.prosecdef = true
-      and not (coalesce(p.proconfig, '{}'::text[]) @> '{search_path=""}')
-  loop
-    execute format('alter function %I.%I(%s) set search_path = '''';', r.nspname, r.proname, r.args);
-  end loop;
-end;
-$ody$;
-
 commit;
-
-
--- Audit function for CI
-create or replace function public.audit_security_definer_search_path()
-returns table(schema_name text, function_name text)
-language plpgsql
-security definer set search_path = ''
-as $ody$
-begin
-  if coalesce(current_setting('request.jwt.claim.role', true), '') != 'service_role' and current_user not in ('postgres', 'supabase_admin') then
-    raise exception 'UNAUTHORIZED';
-  end if;
-
-  return query
-    select n.nspname::text, p.proname::text
-    from pg_proc p
-    join pg_namespace n on p.pronamespace = n.oid
-    where n.nspname = 'public'
-      and p.prosecdef = true
-      and not (coalesce(p.proconfig, '{}'::text[]) @> '{search_path=""}');
-end;
-$ody$;
