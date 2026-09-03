@@ -14,6 +14,7 @@
  */
 export class TestFiscalProvider implements FiscalProvider {
   
+  generateReference(invoiceId: string): string { return "TEST" + invoiceId.replace(/-/g, "").toUpperCase(); }
   async issueInvoice(input: IssueInvoiceInput): Promise<IssueInvoiceResult> {
     const latency = input.credentials?.latencyMs ?? 800;
     if (latency > 0) await new Promise(r => setTimeout(r, latency));

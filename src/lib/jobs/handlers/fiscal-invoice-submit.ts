@@ -36,16 +36,35 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
     return { success: false, retryable: false, error: err.message };
   }
 
-  // 4. Submit
+  // 4. Generate and Persist Provider Reference
+  const referenceId = invoice.provider_reference || provider.generateReference(invoice.id);
+  if (!invoice.provider_reference) {
+    const { error: refErr } = await supabaseAdmin
+      .from("invoices")
+      .update({ provider_reference: referenceId, status: "submission_started" })
+      .eq("id", invoiceId);
+      
+    if (refErr) return { success: false, retryable: true, backoffMinutes: 1, error: "Failed to persist provider_reference" };
+
+    await supabaseAdmin.from("invoice_events").insert({
+      organization_id: invoice.organization_id,
+      invoice_id: invoiceId,
+      event_type: "processing",
+      description: `Iniciando submissão para provedor com ref ${referenceId}`
+    });
+  }
+
+  // 5. Submit
   console.log(`[FiscalHandler] Submitting invoice ${invoiceId} via ${providerCode}...`);
   const result = await provider.issueInvoice({
     invoiceId: invoice.id,
+    providerReference: referenceId,
     payload: invoice, // The provider's transformer will map this snapshot
     environment: environment as any,
     credentials: providerConfig?.credentials || { latencyMs: 0 }
   });
 
-  // 5. Normalization & State Update
+  // 6. Normalization & State Update
   if (!result.success) {
     if (result.canonicalStatus === "error") {
       if (result.errorCode === "FOCUS_SUBMISSION_OUTCOME_UNKNOWN" && result.recoveryStrategy === "status_check_first") {
@@ -61,9 +80,18 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
         return { 
           success: false, 
           retryable: false, 
-          error: "SubmissÃ£o incerta (Timeout). Delegado para recovery (status_check_first)."
+          error: "Submissão incerta (Timeout). Delegado para recovery (status_check_first)."
         };
       }
+
+      // Update the invoice to error and generate the event
+      await supabaseAdmin.rpc("fiscal_record_submission_failure", {
+        p_org_id: invoice.organization_id,
+        p_invoice_id: invoiceId,
+        p_error_code: result.errorCode,
+        p_error_message: `[${result.errorCode}] ${result.error}`,
+        p_raw_response: result.rawResponse || { provider: providerCode, retryable: result.isRetryableError }
+      });
 
       return { 
         success: false, 
@@ -74,7 +102,7 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
     }
   }
   
-  // 6. Update Database using Service Role directly
+  // 7. Update Database using Service Role directly
   const { error: updateErr } = await supabaseAdmin
     .from("invoices")
     .update({ 
@@ -82,13 +110,14 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
       provider_reference: result.providerReference 
     })
     .eq("id", invoiceId)
-    .eq("status", "submission_pending"); // optimistic concurrency
+    // we could check status, but we now start from submission_started
+    .eq("status", "submission_started"); 
 
   if (updateErr) {
     return { success: false, retryable: true, backoffMinutes: 1, error: "Concurrency mismatch updating invoice status" };
   }
 
-  // 7. Record History Event
+  // 8. Record History Event
   await supabaseAdmin
     .from("invoice_events")
     .insert({
@@ -100,7 +129,7 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
       created_by: null // System actor
     });
 
-  // 8. Enqueue Polling Job if still processing
+  // 9. Enqueue Polling Job if still processing
   if (result.canonicalStatus === "processing") {
     const { error: outboxErr } = await supabaseAdmin
       .from("outbox_jobs")
@@ -120,5 +149,3 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
 
   return { success: true };
 }
-
-

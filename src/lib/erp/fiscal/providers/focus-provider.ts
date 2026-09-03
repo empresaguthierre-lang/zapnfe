@@ -65,7 +65,7 @@ export class FocusNFeProvider implements FiscalProvider {
     };
   }
   
-  private formatReference(invoiceId: string): string {
+  generateReference(invoiceId: string): string {
     return "BRIDGE" + invoiceId.replace(/-/g, "").toUpperCase();
   }
 
@@ -74,12 +74,15 @@ export class FocusNFeProvider implements FiscalProvider {
       const baseUrl = this.getBaseUrl(input.environment);
       const canonicalPayload = resolveTax(input.payload);
       const focusPayload = buildFocusPayload(canonicalPayload);
-      const referenceId = this.formatReference(input.invoiceId); 
+      const referenceId = input.providerReference || this.generateReference(input.invoiceId); 
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
-      const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
+            const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
+      if (!token) {
+        return { success: false, canonicalStatus: "error", isRetryableError: false, errorCode: "FOCUS_CREDENTIALS_MISSING", error: "Credencial Focus NFe ausente no provedor." };
+      }
 
       let response;
       try {
@@ -136,12 +139,15 @@ export class FocusNFeProvider implements FiscalProvider {
   async getInvoiceStatus(input: GetInvoiceStatusInput): Promise<GetInvoiceStatusResult> {
     try {
       const baseUrl = this.getBaseUrl(input.environment);
-      const referenceId = input.providerReference || this.formatReference(input.invoiceId);
+      const referenceId = input.providerReference || this.generateReference(input.invoiceId);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
+            const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
+      if (!token) {
+        return { success: false, canonicalStatus: "error", isRetryableError: false, errorCode: "FOCUS_CREDENTIALS_MISSING", error: "Credencial Focus NFe ausente no provedor." };
+      }
 
       let response;
       try {
@@ -218,5 +224,9 @@ export class FocusNFeProvider implements FiscalProvider {
     return { online: true, message: "Ping ok" };
   }
 }
+
+
+
+
 
 

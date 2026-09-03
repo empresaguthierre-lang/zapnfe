@@ -15,6 +15,7 @@ export type CanonicalInvoiceStatus =
 
 export type IssueInvoiceInput = {
   invoiceId: string;
+  providerReference?: string;
   payload: any;
   environment: "homologation" | "production";
   credentials: any;
@@ -126,6 +127,7 @@ export type FiscalServiceStatusResult = {
 };
 
 export interface FiscalProvider {
+  generateReference(invoiceId: string): string;
   issueInvoice(input: IssueInvoiceInput): Promise<IssueInvoiceResult>;
   getInvoiceStatus(input: GetInvoiceStatusInput): Promise<GetInvoiceStatusResult>;
   cancelInvoice(input: CancelInvoiceInput): Promise<CancelInvoiceResult>;
@@ -134,5 +136,6 @@ export interface FiscalProvider {
   downloadDanfe(input: DownloadFiscalDocumentInput): Promise<FiscalFileResult>;
   checkServiceStatus?(input: CheckFiscalServiceInput): Promise<FiscalServiceStatusResult>;
 }
+
 
 
