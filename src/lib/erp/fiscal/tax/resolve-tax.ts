@@ -65,7 +65,8 @@ export function resolveTax(invoiceSnapshot: any): CanonicalFiscalPayload {
   const issuerAddress = invoiceSnapshot.issuer_address_snapshot || {};
   const recipientAddress = invoiceSnapshot.recipient_address_snapshot || {};
 
-  const isSimplesNacional = invoiceSnapshot.issuer_tax_regime_snapshot === "simples_nacional" || true;
+  if (!invoiceSnapshot.issuer_tax_regime_snapshot) throw new Error("FISCAL_TAX_CONFIGURATION_MISSING");
+  const isSimplesNacional = invoiceSnapshot.issuer_tax_regime_snapshot === "simples_nacional";
   const originState = issuerAddress.state || "SP";
   const destState = recipientAddress.state || "SP";
   const isInterstate = originState !== destState;

@@ -1,46 +1,47 @@
-﻿{
-    "name":  "bridge-erp",
-    "version":  "0.1.0",
-    "private":  true,
-    "scripts":  {
-                    "dev":  "next dev",
-                    "worker":  "tsx src/lib/jobs/runner.ts",
-                    "build":  "next build",
-                    "start":  "next start",
-                    "lint":  "eslint",
-                    "check:lines":  "node scripts/check-file-lines.mjs",
-                    "security:audit":  "npm audit --audit-level=high \u0026\u0026 npm run check:secrets \u0026\u0026 npm run check:security-definer",
-                    "test:gemini":  "node --env-file=.env.local scripts/test-gemini-order.mjs",
-                    "bootstrap:admin":  "node --env-file=.env.local scripts/bootstrap-admin.mjs",
-                    "check:security-definer":  "npx tsx scripts/check_security_definer.ts",
-                    "check:secrets":  "gitleaks detect -v",
-                    "check:encoding":  "echo \u0027Encoding check OK\u0027",
-                    "check:migrations":  "echo \u0027Migrations check OK\u0027",
-                    "test:tenant":  "echo \u0027Tenant tests OK\u0027",
-                    "test:security":  "echo \u0027Security tests OK\u0027",
-                    "quality":  "npm run lint \u0026\u0026 npm run typecheck"
-                },
-    "dependencies":  {
-                         "@google/genai":  "^2.18.0",
-                         "@supabase/ssr":  "^0.12.5",
-                         "@supabase/supabase-js":  "^2.112.4",
-                         "dotenv":  "^17.4.2",
-                         "next":  "16.3.2",
-                         "react":  "19.2.8",
-                         "react-dom":  "19.2.8",
-                         "react-icons":  "^5.7.0",
-                         "server-only":  "^0.0.1",
-                         "zod":  "^4.4.3"
-                     },
-    "devDependencies":  {
-                            "@tailwindcss/postcss":  "^4",
-                            "@types/node":  "^20",
-                            "@types/react":  "^19",
-                            "@types/react-dom":  "^19",
-                            "eslint":  "^9",
-                            "eslint-config-next":  "16.3.2",
-                            "tailwindcss":  "^4",
-                            "tsx":  "^4.23.13",
-                            "typescript":  "^5"
-                        }
+{
+    "name": "bridge-erp",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "worker": "tsx src/lib/jobs/runner.ts",
+        "build": "next build",
+        "start": "next start",
+        "lint": "eslint",
+        "check:lines": "node scripts/check-file-lines.mjs",
+        "security:audit": "npm audit --audit-level=high && npm run check:secrets && npm run check:security-definer",
+        "test:gemini": "node --env-file=.env.local scripts/test-gemini-order.mjs",
+        "bootstrap:admin": "node --env-file=.env.local scripts/bootstrap-admin.mjs",
+        "check:security-definer": "npx tsx scripts/check_security_definer.ts",
+        "check:secrets": "gitleaks detect -v",
+        "check:encoding": "echo 'Encoding check OK'",
+        "check:migrations": "echo 'Migrations check OK'",
+        "test:tenant": "echo 'Tenant tests OK'",
+        "test:security": "echo 'Security tests OK'",
+        "quality": "npm run lint && npm run typecheck"
+    },
+    "dependencies": {
+        "@google/genai": "^2.18.0",
+        "@supabase/ssr": "^0.12.5",
+        "@supabase/supabase-js": "^2.112.4",
+        "dotenv": "^17.4.2",
+        "next": "16.3.2",
+        "pg": "^8.23.0",
+        "react": "19.2.8",
+        "react-dom": "19.2.8",
+        "react-icons": "^5.7.0",
+        "server-only": "^0.0.1",
+        "zod": "^4.4.3"
+    },
+    "devDependencies": {
+        "@tailwindcss/postcss": "^4",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "eslint": "^9",
+        "eslint-config-next": "16.3.2",
+        "tailwindcss": "^4",
+        "tsx": "^4.23.13",
+        "typescript": "^5"
+    }
 }

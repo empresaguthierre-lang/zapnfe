@@ -1,11 +1,11 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { getFiscalProvider } from "../../erp/fiscal/providers/factory";
+import { resolveSecret } from "../../erp/fiscal/secrets/resolver";
 
 export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: any) {
   const invoiceId = job.entity_id;
 
-  // 1. Load Invoice
   const { data: invoice, error: invoiceErr } = await supabaseAdmin
     .from("invoices")
     .select("*")
@@ -17,10 +17,10 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
   }
 
   if (invoice.status !== "processing") {
-    return { success: true, error: "Invoice is not in processing state. Ignoring status check." };
+    console.log(`[FiscalHandler] Status check aborted. Invoice ${invoiceId} is in status ${invoice.status}`);
+    return { success: true };
   }
 
-  // 2. Load Provider Account
   const { data: providerConfig, error: providerErr } = await supabaseAdmin
     .from("fiscal_provider_accounts")
     .select("*")
@@ -29,7 +29,9 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
     .limit(1)
     .maybeSingle();
 
-  const providerCode = providerConfig?.provider || "test_mock";
+  const providerCode = providerConfig?.provider;
+  if (!providerCode) return { success: false, retryable: false, error: "No fiscal provider configured for this organization." };
+  
   const environment = providerConfig?.environment || "homologation";
 
   let provider;
@@ -39,30 +41,31 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
     return { success: false, retryable: false, error: err.message };
   }
 
-  // 3. Poll Status
-  console.log(`[FiscalHandler] Polling status for invoice ${invoiceId} via ${providerCode}...`);
+  const credentials = await resolveSecret(providerConfig?.credentials_reference || providerConfig?.credentials?.credentials_reference);
+
+  console.log(`[FiscalHandler] Checking status for invoice ${invoiceId} via ${providerCode}...`);
   const result = await provider.getInvoiceStatus({
     invoiceId: invoice.id,
-    providerReference: invoice.provider_reference || "test_ref",
+    providerReference: invoice.provider_reference!,
     environment: environment as any,
-    credentials: providerConfig?.credentials || { latencyMs: 0 }
+    credentials
   });
 
-  if (!result.success && result.canonicalStatus !== "rejected") {
+  if (!result.success) {
+    if (result.errorCode === "FOCUS_CREDENTIALS_MISSING") {
+      await supabaseAdmin.rpc("fiscal_record_submission_failure", {
+        p_invoice_id: invoiceId, p_error_code: result.errorCode, p_error_message: result.error, p_raw_response: result.rawResponse || {}
+      });
+      return { success: false, retryable: false, error: result.error };
+    }
     return { 
       success: false, 
-      retryable: result.isRetryableError ?? false, 
+      retryable: result.isRetryableError ?? true, 
       backoffMinutes: 2, 
       error: `[${result.errorCode}] ${result.error}` 
     };
   }
 
-  // If status is still processing, retry later
-  if (result.canonicalStatus === "processing") {
-    return { success: false, retryable: true, backoffMinutes: 1, error: "Still processing" };
-  }
-
-  // Final Status Updates
   if (result.canonicalStatus === "authorized") {
     const { error: authErr } = await supabaseAdmin.rpc("fiscal_record_authorization", {
       p_invoice_id: invoiceId,
@@ -73,16 +76,28 @@ export async function fiscalInvoiceStatusCheckHandler(job: any, supabaseAdmin: a
       p_raw_response: result.rawResponse
     });
     if (authErr) return { success: false, retryable: true, backoffMinutes: 1, error: "Failed to record authorization: " + authErr.message };
-  } else if (result.canonicalStatus === "error" || result.canonicalStatus === "rejected") {
+  } else if (result.canonicalStatus === "rejected") {
+    await supabaseAdmin.rpc("fiscal_record_rejection", {
+      p_invoice_id: invoiceId,
+      p_provider_reference: invoice.provider_reference,
+      p_rejection_code: result.errorCode || "REJECTED",
+      p_rejection_message: result.error || "Rejeição SEFAZ",
+      p_raw_response: result.rawResponse || {}
+    });
+  } else if (result.canonicalStatus === "error") {
     await supabaseAdmin.rpc("fiscal_record_submission_failure", {
       p_invoice_id: invoiceId,
       p_error_code: result.errorCode,
-      p_error_message: `[${result.errorCode}] ${result.error}`,
+      p_error_message: result.error || "Erro no processamento",
       p_raw_response: result.rawResponse || {}
+    });
+  } else if (result.canonicalStatus === "processing") {
+    await supabaseAdmin.from("outbox_jobs").insert({
+      organization_id: invoice.organization_id, job_type: "fiscal.invoice.status_check",
+      entity_type: "invoices", entity_id: invoiceId,
+      available_at: new Date(Date.now() + 5000).toISOString(), payload: {}
     });
   }
 
   return { success: true };
 }
-
-

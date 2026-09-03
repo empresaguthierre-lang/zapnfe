@@ -58,7 +58,7 @@ export class FocusNFeProvider implements FiscalProvider {
   }
 
   private getAuthHeader(token: string): Record<string, string> {
-    if (!token) throw new Error("Missing Focus NFe API Token");
+    if (!token) return { success: false, canonicalStatus: "error", errorCode: "FOCUS_CREDENTIALS_MISSING", isRetryableError: false, error: "Missing Focus NFe API Token" } as any;
     return {
       "Authorization": `Basic ${Buffer.from(token + ":").toString("base64")}`,
       "Content-Type": "application/json"
@@ -77,7 +77,8 @@ export class FocusNFeProvider implements FiscalProvider {
       const referenceId = input.providerReference || this.generateReference(input.invoiceId); 
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); 
+      const timeoutMs = Math.min(Math.max(input.credentials?.requestTimeoutMs || 15000, 5000), 45000);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs); 
 
             const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
       if (!token) {
@@ -100,7 +101,7 @@ export class FocusNFeProvider implements FiscalProvider {
              isRetryableError: true, 
              errorCode: "FOCUS_SUBMISSION_OUTCOME_UNKNOWN", 
              recoveryStrategy: "status_check_first",
-             error: "ConexÃ£o interrompida antes da resposta. Resultado da submissÃ£o Ã© incerto." 
+             error: "Conexão interrompida antes da resposta. Resultado da submissão é incerto." 
            };
         }
         return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "NETWORK_ERROR", error: networkErr.message };
@@ -130,8 +131,8 @@ export class FocusNFeProvider implements FiscalProvider {
         providerReference: referenceId,
         accessKey: data.chave_nfe,
         authorizationProtocol: data.protocolo,
-        authorizedAt: data.data_autorizacao,
-        rawResponse: { http_status: response.status, provider_status: data.status, ...data }
+  authorizedAt: data.data_autorizacao,
+        rawResponse: { http_status: response.status, provider_status: data.status, chave_nfe: data.chave_nfe, protocolo: data.protocolo, mensagem: data.mensagem ? String(data.mensagem).substring(0, 1000).replace(/[\x00-\x1F\x7F]/g, '') : undefined }
       };
 
     } catch (err: any) {
@@ -145,7 +146,8 @@ export class FocusNFeProvider implements FiscalProvider {
       const referenceId = input.providerReference || this.generateReference(input.invoiceId);
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutMs = Math.min(Math.max(input.credentials?.requestTimeoutMs || 15000, 5000), 45000);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
             const token = input.credentials?.apiToken || process.env[input.credentials?.reference || "FOCUS_NFE_API_TOKEN"];
       if (!token) {
@@ -176,7 +178,7 @@ export class FocusNFeProvider implements FiscalProvider {
           canonicalStatus: "error",
           isRetryableError: false,
           errorCode: "REFERENCE_NOT_FOUND",
-          error: "Documento/ReferÃªncia inexistente na Focus", 
+          error: "Documento/Referência inexistente na Focus", 
           rawResponse: { http_status: 404 } 
         };
       }
@@ -190,7 +192,7 @@ export class FocusNFeProvider implements FiscalProvider {
           isRetryableError: classification.isRetryableError,
           errorCode: classification.errorCode,
           error: data.mensagem || "Erro na consulta Focus", 
-          rawResponse: { http_status: response.status, provider_status: data.status, provider_message: data.mensagem || data.mensagem_sefaz } 
+          rawResponse: { http_status: response.status, provider_status: data.status, provider_message: (data.mensagem || data.mensagem_sefaz) ? String(data.mensagem || data.mensagem_sefaz).substring(0, 1000).replace(/[\x00-\x1F\x7F]/g, '') : undefined } 
         };
       }
 
@@ -200,7 +202,8 @@ export class FocusNFeProvider implements FiscalProvider {
         providerStatus: data.status,
         accessKey: data.chave_nfe,
         authorizationProtocol: data.protocolo,
-        rawResponse: { http_status: response.status, provider_status: data.status, provider_message: data.mensagem_sefaz }
+  authorizedAt: data.data_autorizacao,
+        rawResponse: { http_status: response.status, provider_status: data.status, provider_message: data.mensagem_sefaz ? String(data.mensagem_sefaz).substring(0, 1000).replace(/[\x00-\x1F\x7F]/g, '') : undefined }
       };
     } catch (err: any) {
       return { success: false, canonicalStatus: "error", isRetryableError: false, errorCode: "INTERNAL_ADAPTER_ERROR", error: err.message };
