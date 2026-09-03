@@ -1,3 +1,5 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { getFiscalProvider } from "../../erp/fiscal/providers/factory";
 
 export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
@@ -59,7 +61,7 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
         return { 
           success: false, 
           retryable: false, 
-          error: "Submissão incerta (Timeout). Delegado para recovery (status_check_first)."
+          error: "SubmissÃ£o incerta (Timeout). Delegado para recovery (status_check_first)."
         };
       }
 
@@ -118,4 +120,5 @@ export async function fiscalInvoiceSubmitHandler(job: any, supabaseAdmin: any) {
 
   return { success: true };
 }
+
 

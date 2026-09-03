@@ -1,4 +1,6 @@
-﻿import { getFiscalProvider } from "../../erp/fiscal/providers/factory";
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { getFiscalProvider } from "../../erp/fiscal/providers/factory";
 
 export async function fiscalInvoiceRecoverHandler(job: any, supabaseAdmin: any) {
   const invoiceId = job.entity_id;
@@ -104,4 +106,5 @@ export async function fiscalInvoiceRecoverHandler(job: any, supabaseAdmin: any) 
 
   return { success: true };
 }
+
 

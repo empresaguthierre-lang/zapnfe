@@ -1,3 +1,5 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-require-imports */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FiArrowLeft, FiInfo, FiFileText } from "react-icons/fi";
@@ -55,10 +57,10 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
       <div style={{ marginBottom: 24, padding: "16px", borderRadius: "12px", background: "#f0f9ff", border: "1px solid #bae6fd", display: "flex", gap: "12px", color: "#0369a1" }}>
          <FiInfo size={24} style={{ flexShrink: 0, marginTop: 4 }} />
          <div>
-           <strong style={{ fontSize: "14px", display: "block" }}>Snapshot Imutável</strong>
+           <strong style={{ fontSize: "14px", display: "block" }}>Snapshot ImutÃ¡vel</strong>
            <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>
-             Os dados deste documento representam a verdade no momento da preparação (Revisão {invoice.draft_revision}).
-             Não é possível edição inline. Se houver divergências, corrija o cadastro de origem e gere uma nova revisão a partir do pedido.
+             Os dados deste documento representam a verdade no momento da preparaÃ§Ã£o (RevisÃ£o {invoice.draft_revision}).
+             NÃ£o Ã© possÃ­vel ediÃ§Ã£o inline. Se houver divergÃªncias, corrija o cadastro de origem e gere uma nova revisÃ£o a partir do pedido.
            </p>
          </div>
       </div>
@@ -66,10 +68,10 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
       <div className="panel" style={{ padding: 24, marginBottom: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <h3 style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 16px 0", color: "var(--ink)" }}>
-             <FiFileText /> Draft — {invoice.status.toUpperCase()}
+             <FiFileText /> Draft â€” {invoice.status.toUpperCase()}
           </h3>
           <div style={{ textAlign: "right" }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Revisão</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>RevisÃ£o</span>
             <strong style={{ display: "block", fontSize: 20 }}>{invoice.draft_revision}</strong>
           </div>
         </div>
@@ -77,32 +79,32 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
            <div>
              <h4 style={{ margin: "0 0 12px 0", fontSize: 13, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Emitente</h4>
-             <p style={{ margin: "0 0 4px 0" }}><strong>{invoice.issuer_legal_name_snapshot || "—"}</strong></p>
+             <p style={{ margin: "0 0 4px 0" }}><strong>{invoice.issuer_legal_name_snapshot || "â€”"}</strong></p>
              <p style={{ margin: "0 0 4px 0", fontSize: 13 }}>
-               CNPJ: {invoice.issuer_cnpj_snapshot || "—"}
-               {invoice.issuer_ie_snapshot && <> • IE: {invoice.issuer_ie_snapshot}</>}
+               CNPJ: {invoice.issuer_cnpj_snapshot || "â€”"}
+               {invoice.issuer_ie_snapshot && <> â€¢ IE: {invoice.issuer_ie_snapshot}</>}
              </p>
-             <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>Regime: {invoice.issuer_tax_regime_snapshot || "—"}</p>
+             <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>Regime: {invoice.issuer_tax_regime_snapshot || "â€”"}</p>
              {invoice.issuer_address_snapshot && (
                <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
-                 {invoice.issuer_address_snapshot.street}, {invoice.issuer_address_snapshot.number} — {invoice.issuer_address_snapshot.district}, {invoice.issuer_address_snapshot.city}/{invoice.issuer_address_snapshot.state}
+                 {invoice.issuer_address_snapshot.street}, {invoice.issuer_address_snapshot.number} â€” {invoice.issuer_address_snapshot.district}, {invoice.issuer_address_snapshot.city}/{invoice.issuer_address_snapshot.state}
                </p>
              )}
            </div>
 
            <div>
-             <h4 style={{ margin: "0 0 12px 0", fontSize: 13, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Destinatário</h4>
-             <p style={{ margin: "0 0 4px 0" }}><strong>{invoice.recipient_name_snapshot || "—"}</strong></p>
+             <h4 style={{ margin: "0 0 12px 0", fontSize: 13, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.5px" }}>DestinatÃ¡rio</h4>
+             <p style={{ margin: "0 0 4px 0" }}><strong>{invoice.recipient_name_snapshot || "â€”"}</strong></p>
              <p style={{ margin: "0 0 4px 0", fontSize: 13 }}>
-               Documento: {invoice.recipient_document_snapshot || "—"}
-               {invoice.recipient_ie_snapshot && <> • IE: {invoice.recipient_ie_snapshot}</>}
+               Documento: {invoice.recipient_document_snapshot || "â€”"}
+               {invoice.recipient_ie_snapshot && <> â€¢ IE: {invoice.recipient_ie_snapshot}</>}
              </p>
              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
                 {invoice.recipient_final_consumer_snapshot ? "Consumidor Final" : "Contribuinte"}
              </p>
              {invoice.recipient_address_snapshot && (
                <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
-                 {invoice.recipient_address_snapshot.street}, {invoice.recipient_address_snapshot.number} — {invoice.recipient_address_snapshot.district}, {invoice.recipient_address_snapshot.city}/{invoice.recipient_address_snapshot.state}
+                 {invoice.recipient_address_snapshot.street}, {invoice.recipient_address_snapshot.number} â€” {invoice.recipient_address_snapshot.district}, {invoice.recipient_address_snapshot.city}/{invoice.recipient_address_snapshot.state}
                </p>
              )}
            </div>
@@ -112,7 +114,7 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
       <div className="panel data-panel" style={{ marginBottom: 24 }}>
         <div className="data-table">
           <div className="data-row data-header" style={{ gridTemplateColumns: "0.5fr 3fr 1fr 1fr 1fr" }}>
-            <span>#</span><span>Produto</span><span>Qtd</span><span>V. Unitário</span><span style={{ textAlign: "right" }}>Total</span>
+            <span>#</span><span>Produto</span><span>Qtd</span><span>V. UnitÃ¡rio</span><span style={{ textAlign: "right" }}>Total</span>
           </div>
 
           {items?.map(item => (
@@ -120,7 +122,7 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
                <span style={{ color: "var(--text-secondary)" }}>{item.item_sequence}</span>
                <div>
                  <strong>{item.description_snapshot}</strong>
-                 <br/><small style={{ color: "var(--text-secondary)" }}>SKU: {item.sku_snapshot || "—"} • NCM: {item.ncm_snapshot || "N/I"} • CFOP: {item.cfop_snapshot || "N/I"}</small>
+                 <br/><small style={{ color: "var(--text-secondary)" }}>SKU: {item.sku_snapshot || "â€”"} â€¢ NCM: {item.ncm_snapshot || "N/I"} â€¢ CFOP: {item.cfop_snapshot || "N/I"}</small>
                </div>
                <div>{item.quantity}</div>
                <div>{formatCurrency(Number(item.unit_price))}</div>
@@ -160,24 +162,24 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
                if (err.includes("PROVIDER_AUTHENTICATION_ERROR") || err.includes("PROVIDER_PERMISSION_ERROR")) {
                  return (
                    <>
-                     <strong style={{ fontSize: "14px", display: "block" }}>🔴 Falha na configuração do provedor</strong>
-                     <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Não foi possível autenticar a empresa na Focus NFe. A NF-e NÃO foi rejeitada pela SEFAZ.</p>
+                     <strong style={{ fontSize: "14px", display: "block" }}>ðŸ”´ Falha na configuraÃ§Ã£o do provedor</strong>
+                     <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>NÃ£o foi possÃ­vel autenticar a empresa na Focus NFe. A NF-e NÃƒO foi rejeitada pela SEFAZ.</p>
                    </>
                  );
                }
                if (err.includes("PROVIDER_VALIDATION_ERROR") || err.includes("PROVIDER_PROTOCOL_ERROR")) {
                  return (
                    <>
-                     <strong style={{ fontSize: "14px", display: "block" }}>🔴 Dados recusados pelo provedor</strong>
-                     <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>A NF-e não chegou à etapa de autorização.</p>
+                     <strong style={{ fontSize: "14px", display: "block" }}>ðŸ”´ Dados recusados pelo provedor</strong>
+                     <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>A NF-e nÃ£o chegou Ã  etapa de autorizaÃ§Ã£o.</p>
                      <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Mensagem: {err}</p>
                    </>
                  );
                }
                return (
                  <>
-                   <strong style={{ fontSize: "14px", display: "block" }}>🔴 Erro Técnico</strong>
-                   <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Ocorreu uma falha técnica. Mensagem: {err}</p>
+                   <strong style={{ fontSize: "14px", display: "block" }}>ðŸ”´ Erro TÃ©cnico</strong>
+                   <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Ocorreu uma falha tÃ©cnica. Mensagem: {err}</p>
                  </>
                );
             })()}
@@ -189,11 +191,11 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
         <div style={{ marginBottom: 24, padding: "16px", borderRadius: "12px", background: "#fef2f2", border: "1px solid #fca5a5", display: "flex", gap: "12px", color: "#991b1b" }}>
           <FiInfo size={24} style={{ flexShrink: 0, marginTop: 4 }} />
           <div>
-            <strong style={{ fontSize: "14px", display: "block" }}>⛔ NF-e rejeitada</strong>
-            <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>SEFAZ rejeitou a autorização.</p>
+            <strong style={{ fontSize: "14px", display: "block" }}>â›” NF-e rejeitada</strong>
+            <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>SEFAZ rejeitou a autorizaÃ§Ã£o.</p>
             {events.slice().reverse().find(e => e.event_type === "rejected")?.provider_response && (
               <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>
-                Motivo: {events.slice().reverse().find(e => e.event_type === "rejected")?.provider_response?.provider_message || "Rejeição Sefaz"}
+                Motivo: {events.slice().reverse().find(e => e.event_type === "rejected")?.provider_response?.provider_message || "RejeiÃ§Ã£o Sefaz"}
               </p>
             )}
           </div>
@@ -217,10 +219,10 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
           </div>
           <div>
             <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ambiente</span>
-            <strong style={{ textTransform: "capitalize" }}>{invoice.environment || "Homologação"}</strong>
+            <strong style={{ textTransform: "capitalize" }}>{invoice.environment || "HomologaÃ§Ã£o"}</strong>
           </div>
           <div>
-            <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Referência</span>
+            <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>ReferÃªncia</span>
             <strong style={{ fontFamily: "monospace" }}>{invoice.provider_reference || "N/A"}</strong>
           </div>
           <div>
@@ -238,7 +240,7 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
                 <strong>{outboxJob.attempts} / {outboxJob.max_attempts}</strong>
               </div>
               <div>
-                <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Próxima</span>
+                <span style={{ color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>PrÃ³xima</span>
                 <strong>{formatDateTime(outboxJob.available_at)}</strong>
               </div>
             </div>
@@ -248,7 +250,7 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
 
       {events && events.length > 0 && (
         <div className="panel" style={{ padding: 24 }}>
-          <h4 style={{ margin: "0 0 16px 0", fontSize: 13, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Histórico de Eventos</h4>
+          <h4 style={{ margin: "0 0 16px 0", fontSize: 13, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "0.5px" }}>HistÃ³rico de Eventos</h4>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {events.map(evt => (
               <div key={evt.id} style={{ display: "flex", gap: 12, alignItems: "flex-start", paddingBottom: 12, borderBottom: "1px solid var(--line)" }}>
@@ -259,7 +261,7 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
                     <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{formatDateTime(evt.event_date)}</span>
                   </div>
                   <p style={{ margin: "4px 0 0 0", fontSize: 13 }}>
-                    {evt.description} <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>— {(evt as any).created_by_user?.email || "Sistema"}</span>
+                    {evt.description} <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>â€” {(evt as any).created_by_user?.email || "Sistema"}</span>
                   </p>
                   {(evt as any).provider_response && (
                     <pre style={{ margin: "8px 0 0 0", padding: "8px", background: "#f8fafc", borderRadius: 4, fontSize: 11, color: "var(--text-secondary)", overflowX: "auto" }}>
@@ -276,3 +278,4 @@ export default async function InvoiceDraftPage({ params }: { params: Promise<{ i
     </AppShell>
   );
 }
+

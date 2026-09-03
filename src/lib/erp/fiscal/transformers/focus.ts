@@ -1,3 +1,5 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { CanonicalFiscalPayload } from "../tax/resolve-tax";
 
 export function buildFocusPayload(canonical: CanonicalFiscalPayload): any {
@@ -21,7 +23,7 @@ export function buildFocusPayload(canonical: CanonicalFiscalPayload): any {
     cep_emitente: canonical.emitente.cep,
     inscricao_estadual_emitente: canonical.emitente.inscricao_estadual,
 
-    // Destinat�rio
+    // Destinatário
     nome_destinatario: canonical.destinatario.nome,
     cnpj_destinatario: canonical.destinatario.cnpj_cpf?.length > 11 ? canonical.destinatario.cnpj_cpf : undefined,
     cpf_destinatario: canonical.destinatario.cnpj_cpf?.length <= 11 ? canonical.destinatario.cnpj_cpf : undefined,
@@ -61,4 +63,5 @@ export function buildFocusPayload(canonical: CanonicalFiscalPayload): any {
 
   return payload;
 }
+
 

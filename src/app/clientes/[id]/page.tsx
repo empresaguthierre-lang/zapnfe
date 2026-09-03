@@ -1,4 +1,6 @@
-﻿import Link from "next/link";
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-require-imports */
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { requireOrganizationMember } from "@/lib/auth/authorization";

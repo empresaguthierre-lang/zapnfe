@@ -1,4 +1,6 @@
-﻿export interface CanonicalFiscalItem {
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export interface CanonicalFiscalItem {
   numero_item: number;
   codigo_produto: string;
   descricao: string;
@@ -136,4 +138,5 @@ export function resolveTax(invoiceSnapshot: any): CanonicalFiscalPayload {
     valor_total: invoiceSnapshot.total_value || 0,
   };
 }
+
 

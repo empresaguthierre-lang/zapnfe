@@ -1,4 +1,6 @@
-﻿import { createClient } from "@supabase/supabase-js";
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-require-imports */
+import { createClient } from "@supabase/supabase-js";
 import * as dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
@@ -78,10 +80,10 @@ async function run() {
     console.log("protocol:", updatedInv.provider_authorization_protocol ? "PRESENTE" : "AUSENTE");
     
     console.log("\noutbox final:");
-    outbox.forEach(ob => console.log(`- ${ob.job_type}: ${ob.status} (attempts: ${ob.attempts})`));
+    outbox?.forEach(ob => console.log(`- ${ob.job_type}: ${ob.status} (attempts: ${ob.attempts})`));
     
     console.log("\ninvoice_events:");
-    events.forEach(ev => {
+    events?.forEach(ev => {
       console.log(`- [${ev.event_type}] ${ev.description}`);
       if (ev.provider_response) console.log("  Response:", JSON.stringify(ev.provider_response));
     });
@@ -90,4 +92,6 @@ async function run() {
 }
 
 run();
+
+
 

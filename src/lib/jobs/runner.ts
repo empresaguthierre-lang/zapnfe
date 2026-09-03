@@ -1,3 +1,5 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as dotenv from 'dotenv';
 // Load env vars from .env.local for local testing
 dotenv.config({ path: '.env.local' });

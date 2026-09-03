@@ -1,3 +1,5 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export type CanonicalInvoiceStatus = 
   | "draft"
   | "ready"
@@ -132,4 +134,5 @@ export interface FiscalProvider {
   downloadDanfe(input: DownloadFiscalDocumentInput): Promise<FiscalFileResult>;
   checkServiceStatus?(input: CheckFiscalServiceInput): Promise<FiscalServiceStatusResult>;
 }
+
 

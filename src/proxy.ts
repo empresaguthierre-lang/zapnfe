@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedPrefixes = ["/pedidos", "/clientes", "/produtos", "/notas-fiscais", "/configuracoes", "/erp"];
+const protectedPrefixes = ["/pedidos", "/clientes", "/produtos", "/notas-fiscais", "/configuracoes", "/erp", "/financeiro", "/fiscal", "/estoque", "/categorias", "/fornecedores"];
 
 function isProtectedPath(pathname: string) {
   return pathname === "/" || protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
     "frame-ancestors 'none'",
     "form-action 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'nonce-${nonce}'${isDevelopment ? " 'unsafe-inline'" : ""}`,
+    `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob:${trustedOrigin}`,
     "font-src 'self' data:",
     `connect-src 'self'${trustedOrigin}`,

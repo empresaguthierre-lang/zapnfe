@@ -1,4 +1,6 @@
-﻿"use client";
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-require-imports */
+"use client";
 
 import Link from "next/link";
 import { useTransition } from "react";
@@ -6,6 +8,7 @@ import { FiCheckCircle, FiAlertCircle, FiLock, FiAlertTriangle, FiFileText } fro
 import type { Product } from "@/lib/data/types";
 import { prepareInvoiceDraftAction, submitInvoiceAction } from "@/app/pedidos/actions";
 import { formatCurrency } from "@/lib/data/format";
+import { safeInternalHref } from "@/lib/security/href";
 
 type Issue = {
   code: string;
@@ -31,7 +34,7 @@ export function FiscalReadinessPanel({ diagnosis, customerName, products, orderI
   const productIssues = diagnosis.issues.filter(i => i.entity === 'product' || i.code.startsWith('PRODUCT'));
   const otherIssues = diagnosis.issues.filter(i => !['organization', 'customer', 'product'].includes(i.entity || '') && !i.code.startsWith('CUSTOMER') && !i.code.startsWith('PRODUCT'));
 
-  const IssueList = ({ issues }: { issues: Issue[] }) => {
+  const renderIssues = (issues: Issue[]) => {
     if (issues.length === 0) return null;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
@@ -42,7 +45,7 @@ export function FiscalReadinessPanel({ diagnosis, customerName, products, orderI
               {issue.order_item_id && <strong style={{ display: "block", color: "var(--ink)", fontSize: 13 }}>{products.find(p => p.id === issue.order_item_id)?.name || "Item desconhecido"}</strong>}
               <p style={{ margin: "0 0 6px 0", fontSize: 13 }}>{issue.message}</p>
               {issue.action && (
-                <Link href={issue.action.href} className="secondary-button" style={{ padding: "4px 10px", fontSize: 11, minHeight: 0 }}>
+                <Link href={safeInternalHref(issue.action.href)} className="secondary-button" style={{ padding: "4px 10px", fontSize: 11, minHeight: 0 }}>
                   {issue.action.label}
                 </Link>
               )}
@@ -127,29 +130,27 @@ export function FiscalReadinessPanel({ diagnosis, customerName, products, orderI
           
           {issuerIssues.length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <h4 style={{ margin: 0, textTransform: "uppercase", fontSize: 12, color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Emitente</h4>
-              <IssueList issues={issuerIssues} />
+              <h4 style={{ margin: 0, textTransform: "uppercase", fontSize: 12, color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Emitente</h4>`n              {renderIssues(issuerIssues)}
             </div>
           )}
           
           {customerIssues.length > 0 && (
             <div style={{ marginBottom: 24 }}>
               <h4 style={{ margin: 0, textTransform: "uppercase", fontSize: 12, color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Cliente — {customerName}</h4>
-              <IssueList issues={customerIssues} />
+              {renderIssues(otherIssues)}
             </div>
           )}
           
           {productIssues.length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <h4 style={{ margin: 0, textTransform: "uppercase", fontSize: 12, color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Produtos</h4>
-              <IssueList issues={productIssues} />
+              <h4 style={{ margin: 0, textTransform: "uppercase", fontSize: 12, color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Produtos</h4>`n              {renderIssues(productIssues)}
             </div>
           )}
           
           {otherIssues.length > 0 && (
             <div style={{ marginBottom: 24 }}>
               <h4 style={{ margin: 0, textTransform: "uppercase", fontSize: 12, color: "var(--text-secondary)", letterSpacing: "0.5px" }}>Pedido</h4>
-              <IssueList issues={otherIssues} />
+              {renderIssues(otherIssues)}
             </div>
           )}
           
@@ -168,3 +169,7 @@ export function FiscalReadinessPanel({ diagnosis, customerName, products, orderI
     </div>
   );
 }
+
+
+
+

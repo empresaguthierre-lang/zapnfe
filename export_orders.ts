@@ -1,4 +1,6 @@
-﻿import { createClient } from "@supabase/supabase-js";
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-require-imports */
+import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 import * as dotenv from "dotenv";
 

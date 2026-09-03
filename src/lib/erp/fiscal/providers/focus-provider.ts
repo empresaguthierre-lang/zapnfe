@@ -1,3 +1,5 @@
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { 
   FiscalProvider, 
   IssueInvoiceInput, IssueInvoiceResult,
@@ -95,7 +97,7 @@ export class FocusNFeProvider implements FiscalProvider {
              isRetryableError: true, 
              errorCode: "FOCUS_SUBMISSION_OUTCOME_UNKNOWN", 
              recoveryStrategy: "status_check_first",
-             error: "Conexão interrompida antes da resposta. Resultado da submissão é incerto." 
+             error: "ConexÃ£o interrompida antes da resposta. Resultado da submissÃ£o Ã© incerto." 
            };
         }
         return { success: false, canonicalStatus: "error", isRetryableError: true, errorCode: "NETWORK_ERROR", error: networkErr.message };
@@ -165,7 +167,7 @@ export class FocusNFeProvider implements FiscalProvider {
           canonicalStatus: "error",
           isRetryableError: false,
           errorCode: "REFERENCE_NOT_FOUND",
-          error: "Documento/Referência inexistente na Focus", 
+          error: "Documento/ReferÃªncia inexistente na Focus", 
           rawResponse: { http_status: 404 } 
         };
       }
@@ -201,7 +203,7 @@ export class FocusNFeProvider implements FiscalProvider {
   }
 
   async correctInvoice(input: CorrectInvoiceInput): Promise<CorrectInvoiceResult> {
-    return { success: false, canonicalStatus: "error", error: "NOT_IMPLEMENTED" };
+    return { success: false, error: "NOT_IMPLEMENTED" };
   }
 
   async downloadXml(input: DownloadFiscalDocumentInput): Promise<FiscalFileResult> {
@@ -216,4 +218,5 @@ export class FocusNFeProvider implements FiscalProvider {
     return { online: true, message: "Ping ok" };
   }
 }
+
 

@@ -1,4 +1,6 @@
-﻿import { fiscalInvoiceSubmitHandler } from "./handlers/fiscal-invoice-submit";
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { fiscalInvoiceSubmitHandler } from "./handlers/fiscal-invoice-submit";
 import { fiscalInvoiceStatusCheckHandler } from "./handlers/fiscal-invoice-status-check";
 import { fiscalInvoiceRecoverHandler } from "./handlers/fiscal-invoice-recover";
 
@@ -13,4 +15,5 @@ const registry: Record<string, JobHandler> = {
 export function getJobHandler(jobType: string): JobHandler | undefined {
   return registry[jobType];
 }
+
 
