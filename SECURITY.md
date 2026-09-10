@@ -1,4 +1,4 @@
-# Segurança do ZapNFe
+# Segurança do Bridge ERP
 
 Não publique vulnerabilidades, tokens, dados pessoais ou evidências sensíveis em issues públicas.
 

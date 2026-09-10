@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## ZapNFe security and maintainability rules
+## Bridge ERP security and maintainability rules
 
 - Treat every browser, webhook, Meta, Gemini, Supabase and file value as untrusted input.
 - Validate type, size, format, cardinality, tenant ownership and authorization server-side before processing.

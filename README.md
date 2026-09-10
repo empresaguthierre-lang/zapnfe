@@ -1,12 +1,13 @@
-# ZapNFe
+# Bridge ERP
 
-Transforme pedidos recebidos pelo WhatsApp em pedidos faturados, sem redigitação.
+Sistema de Gestão Empresarial integrado e modular com inteligência para automação de processos.
 
-## MVP
+## Módulos
 
-1. WhatsApp + Gemini: receber mensagens, extrair itens e gravar pedidos no Supabase.
-2. Focus NFe: revisar e aprovar o pedido, emitir a NF-e e enviar o DANFE ao cliente.
-3. Produtos + certificado A1: painel de produtos, preços e configuração fiscal da empresa.
+1. Comercial & Pedidos (Vendas, Clientes, Canais)
+2. Estoque & Kardex (Produtos, Movimentações, Reservas)
+3. Financeiro (Contas a Receber, Contas a Pagar, Conciliação)
+4. Fiscal (Emissão e Recepção de Documentos Fiscais)
 
 ## Stack
 

@@ -1,4 +1,4 @@
-﻿import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { fiscalInvoiceSubmitHandler } from "../src/lib/jobs/handlers/fiscal-invoice-submit";
 import * as dotenv from "dotenv";
 
@@ -8,7 +8,8 @@ async function run() {
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   
   console.log("Setting up test data...");
-  const orgId = "2ae1ba69-70ae-4df5-a859-2d521a6089b6";
+  const { data: orgRecord } = await supabase.from("organizations").select("id").limit(1).maybeSingle();
+  const orgId = orgRecord?.id ?? process.env.TEST_ORGANIZATION_ID ?? "00000000-0000-0000-0000-000000000000";
   
   await supabase.from("fiscal_provider_accounts").delete().eq("organization_id", orgId);
   await supabase.from("fiscal_provider_accounts").insert({

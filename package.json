@@ -15,10 +15,11 @@
         "bootstrap:admin": "node --env-file=.env.local scripts/bootstrap-admin.mjs",
         "check:security-definer": "npx tsx scripts/check_security_definer.ts",
         "check:secrets": "gitleaks detect -v",
-        "check:encoding": "echo 'Encoding check OK'",
-        "check:migrations": "echo 'Migrations check OK'",
-        "test:tenant": "echo 'Tenant tests OK'",
-        "test:security": "echo 'Security tests OK'",
+        "check:encoding": "tsx scripts/check_encoding.ts",
+        "check:migrations": "tsx scripts/check_migrations.ts",
+        "test:tenant": "tsx --test test/tenant_isolation.test.ts",
+        "test:finance": "tsx --test test/finance.test.ts",
+        "test": "npm run test:finance && npm run test:tenant && npm run check:migrations && npm run check:encoding",
         "quality": "npm run lint && npm run typecheck"
     },
     "dependencies": {
