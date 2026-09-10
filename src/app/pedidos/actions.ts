@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireOrganizationMember, requireOrganizationRole } from "@/lib/auth/authorization";
-import { normalizeUntrustedText } from "@/lib/security/input";
+import { hasPotentiallyMaliciousContent, normalizeUntrustedText } from "@/lib/security/input";
 import { createClient } from "@/lib/supabase/server";
 
 const reviewItemSchema = z.object({
@@ -14,13 +14,17 @@ const reviewItemSchema = z.object({
   confirmed: z.boolean(),
 });
 
+const text = (max: number) => z.string()
+  .transform((value) => normalizeUntrustedText(value, max))
+  .refine((value) => !hasPotentiallyMaliciousContent(value), "Conteúdo não permitido.");
+
 const reviewSchema = z.object({
   orderId: z.string().uuid(),
   expectedUpdatedAt: z.string().datetime({ offset: true }),
   items: z.array(reviewItemSchema).min(1).max(100),
   discount: z.number().min(0).max(999_999_999_999),
   freight: z.number().min(0).max(999_999_999_999),
-  notes: z.string().max(1000),
+  notes: text(1000),
   approve: z.boolean(),
   forceApproval: z.boolean().default(false),
 });
@@ -142,7 +146,7 @@ const reallocateSchema = z.object({
   sourceReservationId: z.string().uuid(),
   targetOrderItemId: z.string().uuid(),
   quantity: z.number().positive(),
-  reason: z.string().transform((value) => normalizeUntrustedText(value, 1000)).pipe(z.string().min(5)),
+  reason: text(1000).pipe(z.string().min(5)),
 });
 
 export async function reallocateReservationAction(input: unknown) {
@@ -198,7 +202,7 @@ export async function getServicePriorityAction(orderId: string) {
 
 
 export async function getCreditExposureAction(orderId: string) {
-  const member = await requireOrganizationMember();
+  const member = await requireOrganizationRole(["admin", "manager"]);
   const parsedOrderId = z.string().uuid().safeParse(orderId);
   if (!parsedOrderId.success) return null;
   const supabase = await createClient();
@@ -270,8 +274,9 @@ export async function prepareInvoiceDraftAction(orderId: string) {
 export async function submitInvoiceAction(invoiceId: string, orderId: string) {
   const member = await requireOrganizationRole(["admin", "manager"]);
   const parsedInvoiceId = z.string().uuid().safeParse(invoiceId);
+  const parsedOrderId = z.string().uuid().safeParse(orderId);
   
-  if (!parsedInvoiceId.success) return { ok: false, message: "Fatura inválida." };
+  if (!parsedInvoiceId.success || !parsedOrderId.success) return { ok: false, message: "Fatura ou pedido inválido." };
 
   const supabase = await createClient();
   
@@ -287,7 +292,7 @@ export async function submitInvoiceAction(invoiceId: string, orderId: string) {
     return { ok: false, message: "Falha ao enfileirar transmissão fiscal." };
   }
   
-  revalidatePath(`/pedidos/${orderId}`);
+  revalidatePath(`/pedidos/${parsedOrderId.data}`);
   revalidatePath(`/fiscal/notas/${invoiceId}`);
   return { ok: true };
 }

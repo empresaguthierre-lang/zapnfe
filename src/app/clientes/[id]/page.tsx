@@ -3,17 +3,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { requireOrganizationMember } from "@/lib/auth/authorization";
+import { requireOrganizationMember, requireOrganizationRole } from "@/lib/auth/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDateTime } from "@/lib/data/format";
 import { FiArrowLeft, FiAlertCircle, FiLock, FiUnlock } from "react-icons/fi";
+import { z } from "zod";
 import { CustomerTabs } from "./tabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ tab?: string }> }) {
-  const { id } = await params;
-  const { tab = "visao-geral" } = await searchParams;
+  const route = z.object({ id: z.uuid() }).safeParse(await params);
+  if (!route.success) notFound();
+  const id = route.data.id;
+  const parsedTab = z.enum(["visao-geral", "pedidos", "financeiro", "fiscal", "restricoes", "historico"])
+    .catch("visao-geral")
+    .parse((await searchParams).tab);
+  const tab = parsedTab;
   const member = await requireOrganizationMember();
   const supabase = await createClient();
 
@@ -163,13 +169,14 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                   <div style={{ textAlign: "right" }}>
                     <form action={async () => {
                       "use server";
+                      const authorizedMember = await requireOrganizationRole(["admin", "manager"]);
                       const { createClient } = await import("@/lib/supabase/server");
                       const db = await createClient();
-                      await db.rpc("customer_release_restriction", { p_org_id: member.organizationId, p_restriction_id: r.id, p_reason: "Desbloqueio manual" });
+                      await db.rpc("customer_release_restriction", { p_org_id: authorizedMember.organizationId, p_restriction_id: r.id, p_reason: "Desbloqueio manual" });
                       const { revalidatePath } = await import("next/cache");
                       revalidatePath(`/clientes/${id}`);
                     }}>
-                      <button type="submit" className="secondary-button" style={{ fontSize: "12px", padding: "6px 12px", minHeight: "auto" }}>
+                      <button type="submit" disabled={member.role === "operator"} className="secondary-button" style={{ fontSize: "12px", padding: "6px 12px", minHeight: "auto" }}>
                         <FiUnlock /> Desbloquear
                       </button>
                     </form>

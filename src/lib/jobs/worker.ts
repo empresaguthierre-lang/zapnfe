@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { createClient } from "@supabase/supabase-js";
 import { getJobHandler } from "./registry";
+import { normalizeUntrustedText } from "@/lib/security/input";
 
 export async function processOutboxQueue(workerId: string) {
   // Worker needs service role to claim jobs across all tenants
@@ -62,10 +63,10 @@ export async function processOutboxQueue(workerId: string) {
           console.log(`[Worker] Job ${job.id} failed. Retryable: ${result.retryable}`);
         }
       } catch (err: any) {
-        console.error(`[Worker] Unhandled crash in job ${job.id}:`, err);
+        console.error("[Worker] Unhandled crash in job %s:", String(job.id), err);
         await supabaseAdmin.rpc("outbox_fail_job", {
           p_job_id: job.id,
-          p_error: err.message || "Unhandled exception",
+          p_error: typeof err?.message === "string" ? normalizeUntrustedText(err.message, 1000) : "Unhandled exception",
           p_retryable: true,
           p_backoff_minutes: 2
         });

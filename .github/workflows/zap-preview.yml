@@ -12,41 +12,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate authorized target
+
+      - name: Validate authorized Preview target
         env:
           TARGET_URL: ${{ github.event.deployment_status.environment_url }}
+        shell: bash
         run: |
-          if [[ "$TARGET_URL" == "https://zapnfe.vercel.app" ]] || [[ "$TARGET_URL" == "https://zapnfe.vercel.app/" ]]; then
-            echo "URLs de produo no so permitidas no scan automatizado."
-            exit 1
-          fi
-      - name: Prepare report directory
-        run: |
-          mkdir -p "${{ github.workspace }}/zap-reports"
-          chmod 0777 "${{ github.workspace }}/zap-reports"
-      - name: Run ZAP Baseline (Public)
-        env:
-          TARGET_URL: ${{ github.event.deployment_status.environment_url }}
-        run: |
-          docker run --rm \
-            --volume "${{ github.workspace }}/zap-reports:/zap/wrk/:rw" \
-            --network host \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t "$TARGET_URL" -T 5 -r zap-report.html -J zap-report.json || true
-      - name: Run ZAP Baseline (Authenticated)
-        env:
-          TARGET_URL: ${{ github.event.deployment_status.environment_url }}
-          # DAST runs with isolated test users only, never service_role
-          TEST_USER: "security-test-admin@example.invalid"
-          TEST_PASS: ${{ secrets.DAST_TEST_USER_PASSWORD }}
-        run: |
-          echo "Authenticated DAST step (placeholder for context-based ZAP auth)"
-          # docker run --rm ... zap-baseline.py -t "$TARGET_URL" -U security-test-admin ...
-      - uses: actions/upload-artifact@v4
-        if: always()
+          set -euo pipefail
+          case "$TARGET_URL" in
+            https://zapnfe.vercel.app|https://zapnfe.vercel.app/)
+              echo "Production targets are forbidden."
+              exit 1
+              ;;
+            https://zapnfe-*.vercel.app|https://zapnfe-git-*.vercel.app)
+              ;;
+            *)
+              echo "Target is not an authorized ZapNFe Preview URL."
+              exit 1
+              ;;
+          esac
+
+      - name: ZAP public baseline
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
         with:
-          name: zap-baseline-report
-          path: |
-            zap-reports/zap-report.html
-            zap-reports/zap-report.json
-          if-no-files-found: ignore
+          target: ${{ github.event.deployment_status.environment_url }}
+          rules_file_name: .zap/rules.conf
+          allow_issue_writing: false
+          fail_action: true
+          artifact_name: zap-public-baseline

@@ -1,7 +1,9 @@
 import { z } from "zod";
-import { normalizeUntrustedText } from "@/lib/security/input";
+import { hasPotentiallyMaliciousContent, normalizeUntrustedText } from "@/lib/security/input";
 
-const text = (max: number) => z.string().transform((value) => normalizeUntrustedText(value, max));
+const text = (max: number) => z.string()
+  .transform((value) => normalizeUntrustedText(value, max))
+  .refine((value) => !hasPotentiallyMaliciousContent(value), "Conteúdo não permitido.");
 const optionalUuid = z.string().transform((value) => value || null).pipe(z.uuid().nullable());
 
 export const productInputSchema = z.object({

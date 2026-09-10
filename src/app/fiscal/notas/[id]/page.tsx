@@ -7,12 +7,15 @@ import { AppShell } from "@/components/app-shell";
 import { requireOrganizationMember } from "@/lib/auth/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDateTime } from "@/lib/data/format";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDraftPage({ params }: { params: Promise<{ id: string }> }) {
   const member = await requireOrganizationMember();
-  const { id } = await params;
+  const route = z.object({ id: z.uuid() }).safeParse(await params);
+  if (!route.success) notFound();
+  const id = route.data.id;
   const supabase = await createClient();
 
   const { data: invoice } = await supabase

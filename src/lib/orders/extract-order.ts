@@ -3,21 +3,26 @@ import "server-only";
 import { GoogleGenAI, Type } from "@google/genai";
 import { z } from "zod";
 import { getGeminiEnv } from "@/lib/env";
+import { hasPotentiallyMaliciousContent, normalizeUntrustedText } from "@/lib/security/input";
 
 export type CatalogProduct = { id: string; sku: string; name: string; aliases: string[]; unit: string; price: number };
 
+const text = (max: number) => z.string()
+  .transform((value) => normalizeUntrustedText(value, max))
+  .refine((value) => !hasPotentiallyMaliciousContent(value), "Conteúdo não permitido.");
+
 const extractedItemSchema = z.object({
   product_id: z.union([z.literal(""), z.uuid()]),
-  description: z.string().min(1).max(300),
+  description: text(300).pipe(z.string().min(1)),
   quantity: z.number().positive(),
-  unit: z.string().min(1).max(20),
+  unit: text(20).pipe(z.string().min(1)),
   match_confidence: z.number().min(0).max(1),
 });
 
 const extractedOrderSchema = z.object({
   is_order: z.boolean(),
-  customer_name: z.string().max(160),
-  notes: z.string().max(1000),
+  customer_name: text(160),
+  notes: text(1000),
   confidence: z.number().min(0).max(1),
   items: z.array(extractedItemSchema).max(100),
 });
@@ -25,8 +30,15 @@ const extractedOrderSchema = z.object({
 export type ExtractedOrder = z.infer<typeof extractedOrderSchema>;
 
 export async function extractOrderFromText(message: string, products: CatalogProduct[]) {
-  const safeMessage = z.string().min(1).max(5000).parse(message);
-  const safeProducts = z.array(z.object({ id: z.uuid(), sku: z.string().max(120), name: z.string().max(180), aliases: z.array(z.string().max(180)).max(50), unit: z.string().max(20), price: z.number().nonnegative() })).max(500).parse(products);
+  const safeMessage = text(5000).pipe(z.string().min(1)).parse(message);
+  const safeProducts = z.array(z.object({
+    id: z.uuid(),
+    sku: text(120),
+    name: text(180),
+    aliases: z.array(text(180)).max(50),
+    unit: text(20),
+    price: z.number().nonnegative(),
+  })).max(500).parse(products);
   const { apiKey, model } = getGeminiEnv();
   const ai = new GoogleGenAI({ apiKey });
   const catalog = safeProducts.map(({ id, sku, name, aliases, unit }) => ({ id, sku, name, aliases, unit }));

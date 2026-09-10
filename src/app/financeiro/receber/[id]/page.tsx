@@ -6,11 +6,14 @@ import { formatCurrency } from "@/lib/data/format";
 import type { FinanceLookups, ReceivableDetails } from "@/lib/finance/types";
 import { FiArrowLeft } from "react-icons/fi";
 import { ReceivableDetailClient } from "./client-detail";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReceivableDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const route = z.object({ id: z.uuid() }).safeParse(await params);
+  if (!route.success) notFound();
+  const id = route.data.id;
 
   let data;
   try {

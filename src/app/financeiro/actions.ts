@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireOrganizationMember, requireOrganizationRole } from "@/lib/auth/authorization";
-import { normalizeUntrustedText } from "@/lib/security/input";
+import { hasPotentiallyMaliciousContent, normalizeUntrustedText } from "@/lib/security/input";
 import { createClient } from "@/lib/supabase/server";
 
 const installmentSchema = z.object({
@@ -12,10 +12,14 @@ const installmentSchema = z.object({
   due_on: z.string().date(), // YYYY-MM-DD
 });
 
+const text = (max: number) => z.string()
+  .transform((value) => normalizeUntrustedText(value, max))
+  .refine((value) => !hasPotentiallyMaliciousContent(value), "Conteúdo não permitido.");
+
 const createReceivableSchema = z.object({
   customerId: z.string().uuid(),
-  documentNumber: z.string().transform((value) => normalizeUntrustedText(value, 100)).optional().default(""),
-  description: z.string().transform((value) => normalizeUntrustedText(value, 500)).optional().default(""),
+  documentNumber: text(100).optional().default(""),
+  description: text(500).optional().default(""),
   originalAmount: z.number().positive(),
   issuedOn: z.string().date(),
   competenceDate: z.string().date(),
@@ -73,8 +77,8 @@ const registerPaymentSchema = z.object({
   penalty: z.number().min(0).default(0),
   discount: z.number().min(0).default(0),
   paidAt: z.string().datetime({ offset: true }),
-  reference: z.string().transform((value) => normalizeUntrustedText(value, 100)).optional().default(""),
-  notes: z.string().transform((value) => normalizeUntrustedText(value, 500)).optional().default(""),
+  reference: text(100).optional().default(""),
+  notes: text(500).optional().default(""),
 });
 
 export async function registerPaymentAction(input: unknown) {
@@ -116,7 +120,7 @@ export async function registerPaymentAction(input: unknown) {
 
 const reversePaymentSchema = z.object({
   paymentId: z.string().uuid(),
-  reason: z.string().transform((value) => normalizeUntrustedText(value, 500)).pipe(z.string().min(5)),
+  reason: text(500).pipe(z.string().min(5)),
 });
 
 export async function reversePaymentAction(input: unknown) {
@@ -147,6 +151,8 @@ export async function reversePaymentAction(input: unknown) {
 
 export async function getReceivableDetailsAction(receivableId: string) {
   const member = await requireOrganizationMember();
+  const parsedReceivableId = z.string().uuid().safeParse(receivableId);
+  if (!parsedReceivableId.success) throw new Error("Título inválido.");
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -161,7 +167,7 @@ export async function getReceivableDetailsAction(receivableId: string) {
         )
       )
     `)
-    .eq("id", receivableId)
+    .eq("id", parsedReceivableId.data)
     .eq("organization_id", member.organizationId)
     .single();
 

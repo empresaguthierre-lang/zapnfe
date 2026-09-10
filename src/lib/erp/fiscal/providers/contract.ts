@@ -27,6 +27,7 @@ export interface BaseFiscalResult {
   error?: string;
   errorCode?: string;
   isRetryableError?: boolean;
+  backoffSeconds?: number;
   recoveryStrategy?: "status_check_first";
   rawResponse?: any;
 }
@@ -43,6 +44,7 @@ export type IssueInvoiceResult = {
   error?: string;
   errorCode?: string;
   isRetryableError?: boolean;
+  backoffSeconds?: number;
   recoveryStrategy?: "status_check_first";
 };
 
@@ -64,6 +66,7 @@ export type GetInvoiceStatusResult = {
   error?: string;
   errorCode?: string;
   isRetryableError?: boolean;
+  backoffSeconds?: number;
   recoveryStrategy?: "status_check_first";
 };
 

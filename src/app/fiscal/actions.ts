@@ -27,8 +27,9 @@ export async function prepareInvoiceDraftAction(orderId: string) {
 export async function submitInvoiceAction(invoiceId: string, orderId: string) {
   const member = await requireOrganizationRole(["admin", "manager"]);
   const parsedInvoiceId = z.string().uuid().safeParse(invoiceId);
+  const parsedOrderId = z.string().uuid().safeParse(orderId);
   
-  if (!parsedInvoiceId.success) return { ok: false, message: "Fatura inválida." };
+  if (!parsedInvoiceId.success || !parsedOrderId.success) return { ok: false, message: "Fatura ou pedido inválido." };
 
   const supabase = await createClient();
   
@@ -44,7 +45,7 @@ export async function submitInvoiceAction(invoiceId: string, orderId: string) {
     return { ok: false, message: "Falha ao enfileirar transmissão fiscal." };
   }
   
-  revalidatePath(`/pedidos/${orderId}`);
+  revalidatePath(`/pedidos/${parsedOrderId.data}`);
   revalidatePath(`/fiscal/notas/${invoiceId}`);
   return { ok: true };
 }

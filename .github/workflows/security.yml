@@ -7,13 +7,20 @@ on:
     branches: [ "main" ]
 
 jobs:
-  secret-scanning:
+  security:
     name: Secret & SAST Scanning
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
       
       - name: Gitleaks Secret Scan
         uses: gitleaks/gitleaks-action@v2
@@ -21,13 +28,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
 
-      - name: Hardcoded Secrets SAST Regex
-        run: |
-          if grep -iREl 'service_role|SUPABASE_SERVICE_ROLE_KEY|password=***REDACTED*** src supabase/migrations; then
-            echo "::error::Hardcoded critical secrets or identifiers found in the codebase!"
-            exit 1
-          fi
-          echo "No hardcoded critical secrets found by basic SAST."
-
       - name: npm audit
         run: npm audit --audit-level=high
+
+      - name: Install verified OpenGrep
+        run: |
+          curl --fail --silent --show-error --location \
+            --output opengrep \
+            https://github.com/opengrep/opengrep/releases/download/v1.30.0/opengrep_manylinux_x86
+          echo "35779bdd72e92129c8df2a77f0c55e8c08356801ea92591ef32108d6b28d564c  opengrep" | sha256sum --check
+          chmod +x opengrep
+
+      - name: OpenGrep OWASP SAST
+        run: ./opengrep scan --config p/owasp-top-ten --config p/javascript --config p/typescript --error src scripts next.config.ts
+
+      - name: Quality and security invariants
+        run: |
+          npm run quality
+          npm run check:lines
+          npm run check:security-definer
